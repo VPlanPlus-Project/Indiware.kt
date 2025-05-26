@@ -4,6 +4,7 @@ import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.LocalDate
+import kotlinx.serialization.json.Json
 import plus.vplan.lib.indiware.source.Authentication
 import plus.vplan.lib.indiware.source.IndiwareClient
 import plus.vplan.lib.indiware.source.Response
@@ -26,5 +27,6 @@ class CommonGreetingTest {
         val result = indiwareClient.getSubstitutionPlan(LocalDate(2025, 5, 26))
         assertTrue(result is Response.Success)
         println(result.data)
+        println(Json.encodeToString(result.data.classes.first().lessons.first()))
     }
 }

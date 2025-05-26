@@ -2,6 +2,8 @@ package plus.vplan.lib.indiware.model.common
 
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 
 /**
  * A lesson used in a substitution plan. This is recommended to be used whenever possible since it contains all the information about a lesson.
@@ -17,16 +19,17 @@ import kotlinx.datetime.LocalDateTime
  * @param end The end time of the lesson. This can be `null` if the lesson has no end time. That happens, when the school does not provide time information for specific lesson numbers.
  * @param date The date of the lesson. If you need a date, use this one. It is guaranteed to be not `null` and is the date of the day the lesson is scheduled for.
  */
+@Serializable
 data class SubstitutionPlanLesson(
-    val lessonNumber: Int,
-    val subject: String?,
-    val isSubjectChanged: Boolean,
-    val teachers: List<String>,
-    val areTeachersChanged: Boolean,
-    val rooms: List<String>,
-    val areRoomsChanged: Boolean,
-    val info: String?,
-    val start: LocalDateTime?,
-    val end: LocalDateTime?,
-    val date: LocalDate
+    @SerialName("lesson_number") val lessonNumber: Int,
+    @SerialName("subject") val subject: String?,
+    @SerialName("is_subject_changed") val isSubjectChanged: Boolean,
+    @SerialName("teachers") val teachers: List<String>,
+    @SerialName("are_teachers_changed") val areTeachersChanged: Boolean,
+    @SerialName("rooms") val rooms: List<String>,
+    @SerialName("are_rooms_changed") val areRoomsChanged: Boolean,
+    @SerialName("info") val info: String?,
+    @SerialName("start") val start: LocalDateTime?,
+    @SerialName("end") val end: LocalDateTime?,
+    @SerialName("date") val date: LocalDate
 )
