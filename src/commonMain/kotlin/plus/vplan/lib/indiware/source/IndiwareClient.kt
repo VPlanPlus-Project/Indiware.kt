@@ -69,7 +69,7 @@ class IndiwareClient(
             }
             val substitutionPlan = xml.decodeFromString(
                 deserializer = VPlan.serializer(),
-                string = response.bodyAsText()
+                string = response.bodyAsText().dropWhile { it != '<' }
             )
 
             val createdAtFormat = LocalDateTime.Format {
