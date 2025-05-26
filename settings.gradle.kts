@@ -15,5 +15,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Indiware"
-include(":shared")
+includeBuild("convention-plugins")
+rootProject.name = "indiware"
