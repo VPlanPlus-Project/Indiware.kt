@@ -33,7 +33,13 @@ kotlin {
     
     sourceSets {
         commonMain.dependencies {
-            //put your multiplatform dependencies here
+            api(libs.kotlinx.datetime)
+            implementation(libs.kotlinx.serialization.json)
+
+            implementation(libs.ktor.client.core)
+
+            implementation(libs.xmlutil.core)
+            implementation(libs.xmlutil.serialization)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
