@@ -2,6 +2,7 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
+    alias(libs.plugins.kotlinSerialization)
     alias(libs.plugins.kotlinCocoapods)
     alias(libs.plugins.androidLibrary)
 }
@@ -16,6 +17,8 @@ kotlin {
             }
         }
     }
+    jvm()
+    jvmToolchain(21)
     iosX64()
     iosArm64()
     iosSimulatorArm64()
@@ -43,6 +46,10 @@ kotlin {
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
+            implementation(libs.ktor.client.cio)
+        }
+        jvmMain {
+
         }
     }
 }
