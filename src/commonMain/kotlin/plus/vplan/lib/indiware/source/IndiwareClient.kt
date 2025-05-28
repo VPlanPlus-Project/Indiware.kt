@@ -6,6 +6,7 @@ import io.ktor.client.plugins.HttpRequestTimeoutException
 import io.ktor.client.plugins.ServerResponseException
 import io.ktor.client.request.get
 import io.ktor.client.request.url
+import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.CancellationException
@@ -21,8 +22,10 @@ import nl.adaptivity.xmlutil.XmlDeclMode
 import nl.adaptivity.xmlutil.core.XmlVersion
 import nl.adaptivity.xmlutil.serialization.XML
 import nl.adaptivity.xmlutil.serialization.XmlConfig.Companion.IGNORING_UNKNOWN_CHILD_HANDLER
+import plus.vplan.lib.indiware.model.common.BaseData
 import plus.vplan.lib.indiware.model.common.SubstitutionPlan
 import plus.vplan.lib.indiware.model.common.SubstitutionPlanLesson
+import plus.vplan.lib.indiware.model.mobile.student.MobileStudentBaseData
 import plus.vplan.lib.indiware.model.mobile.student.VPlan
 
 @Suppress("unused")
@@ -60,13 +63,7 @@ class IndiwareClient(
                 )
                 authentication.useInRequest(this)
             }
-            if (response.status == HttpStatusCode.Unauthorized) return Response.Error.OnlineError.Unauthorized
-            if (response.status == HttpStatusCode.NotFound) return Response.Error.OnlineError.NotFound
-            if (response.status != HttpStatusCode.OK) {
-                return Response.Error.Other(
-                    "Unexpected status code: ${response.status.value} (${response.status.description}) - body: ${response.bodyAsText()}"
-                )
-            }
+            response.handleUnsuccessfulStates()?.let { return it }
             val substitutionPlan = xml.decodeFromString(
                 deserializer = VPlan.serializer(),
                 string = response.bodyAsText().dropWhile { it != '<' }
@@ -123,6 +120,67 @@ class IndiwareClient(
         }
         throw IllegalStateException()
     }
+
+    suspend fun getBaseDataStudentMobile(
+        authentication: Authentication = this.authentication,
+        knownRoomNames: List<String> = emptyList(),
+        knownTeacherNames: List<String> = emptyList()
+    ): Response<BaseData> {
+        safeRequest(onError = { return it }) {
+            val response = client.get {
+                url(
+                    scheme = "https",
+                    host = "stundenplan24.de",
+                    path = "/${authentication.indiwareSchoolId}/mobil/mobdaten/Klassen.xml"
+                )
+                authentication.useInRequest(this)
+            }
+            response.handleUnsuccessfulStates()?.let { return it }
+
+            val baseData = xml.decodeFromString<MobileStudentBaseData>(
+                deserializer = MobileStudentBaseData.serializer(),
+                string = response.bodyAsText().dropWhile { it != '<' }
+            )
+
+            val holidayFormat = LocalDate.Format {
+                yearTwoDigits(2000)
+                monthNumber()
+                dayOfMonth()
+            }
+
+            return Response.Success(
+                data = BaseData(
+                    schoolName = null,
+                    holidays = baseData.holidays.map { LocalDate.parse(it, holidayFormat) },
+                    classes = baseData.classes.map { baseDataClass ->
+                        BaseData.BaseDataClass(
+                            name = baseDataClass.name.name,
+                            lessonTimes = baseDataClass.lessonTimes.map { lessonTime ->
+                                BaseData.BaseDataClass.BaseDataLessonTime(
+                                    number = lessonTime.lessonNumber,
+                                    start = LocalTime.parse(lessonTime.startTime),
+                                    end = LocalTime.parse(lessonTime.startTime)
+                                )
+                            },
+                            subjectInstances = baseDataClass.subjectInstances.map { subjectInstance ->
+                                BaseData.BaseDataClass.BaseDataSubjectInstance(
+                                    subject = subjectInstance.subjectInstance.subjectName,
+                                    teachers = subjectInstance.subjectInstance.teacherName.splitWithKnownValuesBySpace(knownTeacherNames),
+                                )
+                            },
+                            courses = baseDataClass.courses.map { course ->
+                                BaseData.BaseDataClass.BaseDataCourse(
+                                    name = course.course.courseName,
+                                    teachers = course.course.courseTeacherName.splitWithKnownValuesBySpace(knownTeacherNames)
+                                )
+                            }
+                        )
+                    }
+                )
+            )
+        }
+        throw IllegalStateException()
+    }
 }
 
 internal inline fun safeRequest(
@@ -166,4 +224,15 @@ internal fun LocalTime.Companion.parseOrNull(time: String): LocalTime? {
     } catch (_: IllegalArgumentException) {
         null
     }
+}
+
+internal suspend inline fun HttpResponse.handleUnsuccessfulStates(): Response.Error? {
+    if (this.status == HttpStatusCode.Unauthorized) return Response.Error.OnlineError.Unauthorized
+    if (this.status == HttpStatusCode.NotFound) return Response.Error.OnlineError.NotFound
+    if (this.status != HttpStatusCode.OK) {
+        return Response.Error.Other(
+            "Unexpected status code: ${this.status.value} (${this.status.description}) - body: ${this.bodyAsText()}"
+        )
+    }
+    return null
 }

@@ -29,4 +29,22 @@ class CommonGreetingTest {
         println(result.data)
         println(Json.encodeToString(result.data.classes.first().lessons.first()))
     }
+
+    @Test
+    fun exampleMobdaten() {
+        val client = HttpClient(CIO)
+        val indiwareClient = IndiwareClient(
+            authentication = Authentication(
+                indiwareSchoolId = "10000000",
+                username = "schueler",
+                password = "123123"
+            ),
+            client = client
+        )
+        runBlocking {
+            val result = indiwareClient.getBaseDataStudentMobile()
+            assertTrue(result is Response.Success)
+            println(result.data)
+        }
+    }
 }
