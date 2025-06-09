@@ -19,7 +19,7 @@ cache:
     policy: pull-push
 
 .default-job:
-    image: eclipse-temurin:21-jdk
+    image: openjdk:21-jdk
     before_script:
         - chmod +x ./gradlew
 
