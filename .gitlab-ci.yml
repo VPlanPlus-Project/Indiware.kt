@@ -1,0 +1,82 @@
+stages:
+    - build
+    - release
+
+variables:
+    GRADLE_USER_HOME: "$CI_PROJECT_DIR/.gradle"
+    PROJECT_MAVEN_USERNAME: "gitlab-ci-token"
+    PROJECT_MAVEN_PASSWORD: "$CI_JOB_TOKEN"
+
+cache:
+    key:
+        files:
+            - gradle/libs.versions.toml
+        prefix: "$CI_JOB_NAME"
+    paths:
+        - $CI_PROJECT_DIR/.gradle/caches
+        - $CI_PROJECT_DIR/.gradle/wrapper
+        - build
+    policy: pull-push
+
+.default-job:
+    image: eclipse-temurin:21-jdk
+    before_script:
+        - chmod +x ./gradlew
+
+build:merge-request:
+    extends: .default-job
+    stage: build
+    rules:
+        - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    script:
+        - ./gradlew build --scan --no-daemon
+    tags:
+        - ci
+    artifacts:
+        paths:
+            - build/libs/*.jar
+        expire_in: 1 day
+        name: "build-artifacts-$CI_COMMIT_SHORT_SHA"
+
+release:build-and-publish:
+    extends: .default-job
+    stage: release
+    rules:
+        - if: '$CI_COMMIT_BRANCH == "3-gitlab-migration" && $CI_PIPELINE_SOURCE == "push"'
+    before_script:
+        - echo 'Acquire::http { Proxy "http://parabolix.intranet.familie-babies.de:3142"; }; Acquire::https { Proxy "https://"; };' | tee /etc/apt/apt.conf.d/00proxy
+        - apt-get update && apt-get install -y git
+        - chmod +x ./gradlew
+    script:
+        - |
+            YEAR=$(date +'%Y')
+            MONTH=$(date +'%m')
+            TAG_PREFIX="v${YEAR}.${MONTH}."
+            
+            LAST_INDEX=$(git tag -l "${TAG_PREFIX}*" | \
+              sed -E "s/${TAG_PREFIX}([0-9]+)/\1/" | sort -n | tail -1)
+            if [ -z "$LAST_INDEX" ]; then
+              NEW_INDEX=1
+            else
+              NEW_INDEX=$((LAST_INDEX + 1))
+            fi
+            NEW_TAG="${TAG_PREFIX}${NEW_INDEX}"
+            echo "Version: $NEW_TAG"
+            echo "version=$NEW_TAG" >> local.properties
+            echo "NEW_TAG=$NEW_TAG" >> build.env
+
+        - ./gradlew clean build publish --no-daemon
+
+create:gitlab-release:
+    stage: release
+    needs:
+        - release:build-and-publish
+    image: registry.gitlab.com/gitlab-org/release-cli:latest
+    rules:
+        - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    script:
+        - echo "Releasing ${NEW_TAG}"
+    release:
+        tag_name: $NEW_TAG
+        ref: $CI_COMMIT_SHA
+        description: "Automated release $NEW_TAG"

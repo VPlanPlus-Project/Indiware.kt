@@ -16,13 +16,13 @@ val javadocJar by tasks.registering(Jar::class) {
     archiveClassifier.set("javadoc")
 }
 
-fun RepositoryHandler.vPlanPlusRepositories() {
+fun RepositoryHandler.projectRepository() {
     maven {
         name = "releases"
-        url = uri("https://nexus.vplan.plus/repository/maven-oss")
+        url = uri("https://gitlab.jvbabi.es/api/v4/projects/14/packages/maven")
         credentials {
-            username = localProperties.getProperty("MAVEN_USERNAME") ?: System.getenv("MAVEN_USERNAME")
-            password = localProperties.getProperty("MAVEN_PASSWORD") ?: System.getenv("MAVEN_PASSWORD")
+            username = localProperties.getProperty("PROJECT_MAVEN_USERNAME") ?: System.getenv("PROJECT_MAVEN_USERNAME")
+            password = localProperties.getProperty("PROJECT_MAVEN_PASSWORD") ?: System.getenv("PROJECT_MAVEN_PASSWORD")
         }
         authentication {
             create<BasicAuthentication>("basic")
@@ -32,7 +32,7 @@ fun RepositoryHandler.vPlanPlusRepositories() {
 
 publishing {
     repositories {
-        vPlanPlusRepositories()
+        projectRepository()
     }
 
     publications.withType<MavenPublication> {
