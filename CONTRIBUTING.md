@@ -1,0 +1,2 @@
+# Contribute to the Indiware.kt library
+If you want to contribute, feel free to fork this repository and create a pull request once you're done. If we see something that needs a change, we will notify you and include that in this file. We won't merge your pull-request. Instead, we are going to create a patch and apply it on our in-house GitLab-Instance using your GitHub-Profile.
