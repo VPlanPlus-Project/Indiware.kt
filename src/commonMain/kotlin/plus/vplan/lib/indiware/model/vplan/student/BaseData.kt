@@ -13,6 +13,8 @@ data class VPlanBaseDataStudent(
     @SerialName("kopf") val head: Head,
     @SerialName("freietage")
     @XmlChildrenName("ft") val holidays: List<String>,
+    @SerialName("haupt")
+    @XmlChildrenName("aktion") val actions: List<Action>,
 
     @Transient
     val raw: String = ""
@@ -35,6 +37,18 @@ data class VPlanBaseDataStudent(
         @Serializable
         @SerialName("schulname")
         data class SchoolName(
+            @XmlValue val name: String
+        )
+    }
+
+    @Serializable
+    @SerialName("aktion")
+    data class Action(
+        @SerialName("klasse") val className: ClassName,
+    ) {
+        @Serializable
+        @SerialName("klasse")
+        data class ClassName(
             @XmlValue val name: String
         )
     }

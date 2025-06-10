@@ -14,6 +14,9 @@ data class WPlanStudentBaseData(
     @SerialName("FreieTage")
     @XmlChildrenName("ft")
     val holidays: List<String>,
+    @SerialName("Klassen")
+    @XmlChildrenName("Kl")
+    val classes: List<Class>,
 
     @Transient
     val raw: String = ""
@@ -36,6 +39,18 @@ data class WPlanStudentBaseData(
         @Serializable
         @SerialName("schulname")
         data class SchoolName(
+            @XmlValue val name: String
+        )
+    }
+
+    @Serializable
+    @SerialName("Kl")
+    data class Class(
+        @SerialName("Kurz") val name: ClassName,
+    ) {
+        @Serializable
+        @SerialName("Kurz")
+        data class ClassName(
             @XmlValue val name: String
         )
     }

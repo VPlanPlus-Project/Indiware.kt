@@ -67,9 +67,9 @@ class IndiwareClient(
                 HttpStatusCode.OK -> return TestConnectionResult.Success
                 else -> {
                     val error = response.handleUnsuccessfulStates()
-                    if (error != null) return TestConnectionResult.Error(error)
+                    return if (error != null) TestConnectionResult.Error(error)
                     else {
-                        return TestConnectionResult.Error(
+                        TestConnectionResult.Error(
                             Response.Error.Other(
                                 "Unexpected status code: ${response.status.value} (${response.status.description}) - body: ${response.bodyAsText()}"
                             )
@@ -275,6 +275,37 @@ class IndiwareClient(
         vPlanBaseDataStudent?.head?.schoolName?.name?.let { return Response.Success(it) }
 
         return Response.Success(null)
+    }
+
+    suspend fun getAllClassesIntelligent(
+        authentication: Authentication = this.authentication
+    ): Response<Set<String>> {
+        val classes = mutableSetOf<String>()
+        val mobileBaseData = getMobileBaseDataStudent(authentication).let {
+            if (it is Response.Success) it.data
+            else if (it is Response.Error.OnlineError.NotFound) null
+            else return it as Response.Error
+        }
+
+        classes.addAll(mobileBaseData?.classes.orEmpty().map { it.name.name })
+
+        val vPlanBaseDataStudent = getVPlanBaseDataStudent(authentication).let {
+            if (it is Response.Success) it.data
+            else if (it is Response.Error.OnlineError.NotFound) null
+            else return it as Response.Error
+        }
+
+        classes.addAll(vPlanBaseDataStudent?.actions.orEmpty().map { it.className.name })
+
+        val wPlanStudentBaseData = getWPlanBaseDataStudent(authentication).let {
+            if (it is Response.Success) it.data
+            else if (it is Response.Error.OnlineError.NotFound) null
+            else return it as Response.Error
+        }
+
+        classes.addAll(wPlanStudentBaseData?.classes.orEmpty().map { it.name.name })
+
+        return Response.Success(classes.map { it.trim() }.filterNot { it.isBlank() }.toSet())
     }
 }
 
