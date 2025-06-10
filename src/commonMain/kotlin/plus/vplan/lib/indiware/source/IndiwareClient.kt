@@ -12,12 +12,15 @@ import io.ktor.client.statement.request
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.CancellationException
 import kotlinx.datetime.LocalDate
+import kotlinx.datetime.format
+import kotlinx.datetime.format.Padding
 import nl.adaptivity.xmlutil.ExperimentalXmlUtilApi
 import nl.adaptivity.xmlutil.XmlDeclMode
 import nl.adaptivity.xmlutil.core.XmlVersion
 import nl.adaptivity.xmlutil.serialization.XML
 import nl.adaptivity.xmlutil.serialization.XmlConfig.Companion.IGNORING_UNKNOWN_CHILD_HANDLER
 import plus.vplan.lib.indiware.model.mobile.student.MobileStudentBaseData
+import plus.vplan.lib.indiware.model.mobile.student.MobileStudentData
 import plus.vplan.lib.indiware.model.vplan.student.VPlanBaseDataStudent
 import plus.vplan.lib.indiware.model.wplan.student.WPlanStudentBaseData
 
@@ -73,6 +76,47 @@ class IndiwareClient(
 
             val result = Response.Success(data = mobileBaseDataStudent)
             return result
+        }
+
+        throw IllegalStateException("This should never happen, if it does, please report a bug.")
+    }
+
+    suspend fun getMobileDataStudent(
+        authentication: Authentication = this.authentication,
+        date: LocalDate
+    ): Response<MobileStudentData> {
+        safeRequest(onError = { return it }) {
+            val response = client.get {
+                url(
+                    scheme = "https",
+                    host = "stundenplan24.de",
+                    path = "/${authentication.indiwareSchoolId}/mobil/mobdaten/PlanKl${date.let { 
+                        val format = LocalDate.Format { 
+                            year(Padding.ZERO)
+                            monthNumber(Padding.ZERO)
+                            dayOfMonth(Padding.ZERO)
+                        }
+                        date.format(format)
+                    }}.xml"
+                )
+                authentication.useInRequest(this)
+            }
+
+            response.handleUnsuccessfulStates()?.let { return it }
+
+            val mobileDataStudent = try {
+                xml.decodeFromString(
+                    deserializer = MobileStudentData.serializer(),
+                    string = response.bodyAsText().sanitizeRawPayload()
+                ).copy(raw = response.bodyAsText().sanitizeRawPayload())
+            } catch (e: Exception) {
+                throw PayloadParsingException(
+                    url = response.request.url.toString(),
+                    cause = e
+                )
+            }
+
+            return Response.Success(data = mobileDataStudent)
         }
 
         throw IllegalStateException("This should never happen, if it does, please report a bug.")
