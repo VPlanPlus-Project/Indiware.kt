@@ -10,6 +10,7 @@ import io.ktor.client.plugins.logging.Logging
 import kotlinx.coroutines.runBlocking
 import plus.vplan.lib.indiware.source.Authentication
 import plus.vplan.lib.indiware.source.IndiwareClient
+import plus.vplan.lib.indiware.source.Response
 import java.io.File
 import kotlin.test.Test
 
@@ -26,7 +27,23 @@ class Test {
         }
     }
 
-    val indiware = IndiwareClient(client = client)
+    val indiware = IndiwareClient(client = client, authentication = Authentication(
+        indiwareSchoolId = "10000000",
+        username = "schueler",
+        password = "123123"
+    ))
+
+    @Test
+    fun `Test raw data`() = runBlocking {
+        val mobile = (indiware.getMobileBaseDataStudent() as Response.Success).data.raw
+        assert(mobile.startsWith("<?xml") && mobile.endsWith(">"))
+
+        val wplan = (indiware.getWPlanBaseDataStudent() as Response.Success).data.raw
+        assert(wplan.startsWith("<?xml") && wplan.endsWith(">"))
+
+        val vplan = (indiware.getVPlanBaseDataStudent() as Response.Success).data.raw
+        assert(vplan.startsWith("<?xml") && vplan.endsWith(">"))
+    }
 
     @Test
     fun `Get school names`() {

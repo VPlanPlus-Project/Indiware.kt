@@ -26,7 +26,7 @@ class IndiwareClient(
     val authentication: Authentication,
     val client: HttpClient = HttpClient()
 ) {
-    constructor(client: HttpClient): this(
+    constructor(client: HttpClient) : this(
         authentication = Authentication(
             indiwareSchoolId = "000000",
             username = "username",
@@ -34,6 +34,7 @@ class IndiwareClient(
         ),
         client = client
     )
+
     @OptIn(ExperimentalXmlUtilApi::class)
     private val xml: XML = XML {
         xmlVersion = XmlVersion.XML10
@@ -62,7 +63,7 @@ class IndiwareClient(
                 xml.decodeFromString(
                     deserializer = MobileStudentBaseData.serializer(),
                     string = response.bodyAsText().sanitizeRawPayload()
-                )
+                ).copy(raw = response.bodyAsText().sanitizeRawPayload())
             } catch (e: Exception) {
                 throw PayloadParsingException(
                     url = response.request.url.toString(),
@@ -95,7 +96,7 @@ class IndiwareClient(
                 xml.decodeFromString(
                     deserializer = WPlanStudentBaseData.serializer(),
                     string = response.bodyAsText().sanitizeRawPayload()
-                )
+                ).copy(raw = response.bodyAsText().sanitizeRawPayload())
             } catch (e: Exception) {
                 throw PayloadParsingException(
                     url = response.request.url.toString(),
@@ -110,7 +111,7 @@ class IndiwareClient(
     }
 
     suspend fun getVPlanBaseDataStudent(
-        authentication: Authentication
+        authentication: Authentication = this.authentication
     ): Response<VPlanBaseDataStudent> {
         safeRequest(onError = { return it }) {
             val response = client.get {
@@ -127,7 +128,7 @@ class IndiwareClient(
                 xml.decodeFromString(
                     deserializer = VPlanBaseDataStudent.serializer(),
                     string = response.bodyAsText().sanitizeRawPayload()
-                )
+                ).copy(raw = response.bodyAsText().sanitizeRawPayload())
             } catch (e: Exception) {
                 throw PayloadParsingException(
                     url = response.request.url.toString(),
@@ -150,7 +151,8 @@ class IndiwareClient(
             else return it as Response.Error
         }
 
-        baseData?.holidays?.ifEmpty { null }?.let { return Response.Success(baseData.prettifiedHolidays) }
+        baseData?.holidays?.ifEmpty { null }
+            ?.let { return Response.Success(baseData.prettifiedHolidays) }
 
         val vPlanBaseDataStudent = getVPlanBaseDataStudent(authentication).let {
             if (it is Response.Success) it.data
@@ -158,7 +160,8 @@ class IndiwareClient(
             else return it as Response.Error
         }
 
-        vPlanBaseDataStudent?.holidays?.ifEmpty { null }?.let { return Response.Success(vPlanBaseDataStudent.prettifiedHolidays) }
+        vPlanBaseDataStudent?.holidays?.ifEmpty { null }
+            ?.let { return Response.Success(vPlanBaseDataStudent.prettifiedHolidays) }
 
         val wPlanBaseDataStudent = getWPlanBaseDataStudent(authentication).let {
             if (it is Response.Success) it.data
@@ -166,7 +169,8 @@ class IndiwareClient(
             else return it as Response.Error
         }
 
-        wPlanBaseDataStudent?.holidays?.ifEmpty { null }?.let { return Response.Success(wPlanBaseDataStudent.prettifiedHolidays) }
+        wPlanBaseDataStudent?.holidays?.ifEmpty { null }
+            ?.let { return Response.Success(wPlanBaseDataStudent.prettifiedHolidays) }
 
         return Response.Success(data = emptySet())
     }
@@ -228,11 +232,13 @@ internal suspend inline fun HttpResponse.handleUnsuccessfulStates(): Response.Er
 class PayloadParsingException(
     url: String,
     cause: Throwable? = null
-): Exception() {
-    override val message: String? = "Failed to parse payload from $url. This is unexpected.\nPlease file a bug report at the official repository at $PROJECT_URL:\n${cause?.stackTraceToString()}"
+) : Exception() {
+    override val message: String? =
+        "Failed to parse payload from $url. This is unexpected.\nPlease file a bug report at the official repository at $PROJECT_URL:\n${cause?.stackTraceToString()}"
 }
 
-internal const val PROJECT_URL = "https://gitlab.jvbabi.es/vplanplus/lib/Indiware-kt or https://github.com/VPlanPlus-Project/Indiware.kt"
+internal const val PROJECT_URL =
+    "https://gitlab.jvbabi.es/vplanplus/lib/Indiware-kt or https://github.com/VPlanPlus-Project/Indiware.kt"
 
 internal fun String.sanitizeRawPayload() =
     this
