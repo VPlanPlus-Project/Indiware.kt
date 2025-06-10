@@ -5,6 +5,7 @@ stages:
 variables:
     PROJECT_MAVEN_USERNAME: "gitlab-ci-token"
     PROJECT_MAVEN_PASSWORD: "$CI_JOB_TOKEN"
+    ANDROID_HOME: "/home/gitlab-runner/android-sdk"
 
 .default-job:
     before_script:
