@@ -22,11 +22,11 @@ import nl.adaptivity.xmlutil.XmlDeclMode
 import nl.adaptivity.xmlutil.core.XmlVersion
 import nl.adaptivity.xmlutil.serialization.XML
 import nl.adaptivity.xmlutil.serialization.XmlConfig.Companion.IGNORING_UNKNOWN_CHILD_HANDLER
-import plus.vplan.lib.indiware.model.common.BaseData
 import plus.vplan.lib.indiware.model.common.SubstitutionPlan
 import plus.vplan.lib.indiware.model.common.SubstitutionPlanLesson
 import plus.vplan.lib.indiware.model.mobile.student.MobileStudentBaseData
 import plus.vplan.lib.indiware.model.mobile.student.VPlan
+import plus.vplan.lib.indiware.model.wplan.student.WPlanStudentBaseData
 
 @Suppress("unused")
 class IndiwareClient(
@@ -42,6 +42,57 @@ class IndiwareClient(
         defaultPolicy {
             unknownChildHandler = IGNORING_UNKNOWN_CHILD_HANDLER
         }
+    }
+
+    suspend fun getMobileBaseDataStudent(
+        authentication: Authentication = this.authentication,
+    ): Response<MobileStudentBaseData> {
+        safeRequest(onError = { return it }) {
+            val response = client.get {
+                url(
+                    scheme = "https",
+                    host = "stundenplan24.de",
+                    path = "/${authentication.indiwareSchoolId}/mobil/mobdaten/Klassen.xml"
+                )
+                authentication.useInRequest(this)
+            }
+            response.handleUnsuccessfulStates()?.let { return it }
+
+            val mobileBaseDataStudent = xml.decodeFromString(
+                deserializer = MobileStudentBaseData.serializer(),
+                string = response.bodyAsText().dropWhile { it != '<' }
+            )
+
+            val result = Response.Success(data = mobileBaseDataStudent)
+            return result
+        }
+
+        throw IllegalStateException("This should never happen, if it does, please report a bug.")
+    }
+
+    suspend fun getWPlanBaseDataStudent(
+        authentication: Authentication = this.authentication
+    ): Response<WPlanStudentBaseData> {
+        safeRequest(onError = { return it }) {
+            val response = client.get {
+                url(
+                    scheme = "https",
+                    host = "stundenplan24.de",
+                    path = "/${authentication.indiwareSchoolId}/wplan/wdatenk/SPlanKl_Basis.xml"
+                )
+                authentication.useInRequest(this)
+            }
+
+            response.handleUnsuccessfulStates()?.let { return it }
+            val wPlanBaseDataStudent = xml.decodeFromString(
+                deserializer = WPlanStudentBaseData.serializer(),
+                string = response.bodyAsText().dropWhile { it != '<' }
+            )
+
+            return Response.Success(data = wPlanBaseDataStudent)
+        }
+
+        throw IllegalStateException("This should never happen, if it does, please report a bug.")
     }
 
     suspend fun getSubstitutionPlan(
@@ -121,65 +172,26 @@ class IndiwareClient(
         throw IllegalStateException()
     }
 
-    suspend fun getBaseDataStudentMobile(
-        authentication: Authentication = this.authentication,
-        knownRoomNames: List<String> = emptyList(),
-        knownTeacherNames: List<String> = emptyList()
-    ): Response<BaseData> {
-        safeRequest(onError = { return it }) {
-            val response = client.get {
-                url(
-                    scheme = "https",
-                    host = "stundenplan24.de",
-                    path = "/${authentication.indiwareSchoolId}/mobil/mobdaten/Klassen.xml"
-                )
-                authentication.useInRequest(this)
-            }
-            response.handleUnsuccessfulStates()?.let { return it }
-
-            val baseData = xml.decodeFromString<MobileStudentBaseData>(
-                deserializer = MobileStudentBaseData.serializer(),
-                string = response.bodyAsText().dropWhile { it != '<' }
-            )
-
-            val holidayFormat = LocalDate.Format {
-                yearTwoDigits(2000)
-                monthNumber()
-                dayOfMonth()
-            }
-
-            return Response.Success(
-                data = BaseData(
-                    schoolName = null,
-                    holidays = baseData.holidays.map { LocalDate.parse(it, holidayFormat) },
-                    classes = baseData.classes.map { baseDataClass ->
-                        BaseData.BaseDataClass(
-                            name = baseDataClass.name.name,
-                            lessonTimes = baseDataClass.lessonTimes.map { lessonTime ->
-                                BaseData.BaseDataClass.BaseDataLessonTime(
-                                    number = lessonTime.lessonNumber,
-                                    start = LocalTime.parse(lessonTime.startTime),
-                                    end = LocalTime.parse(lessonTime.startTime)
-                                )
-                            },
-                            subjectInstances = baseDataClass.subjectInstances.map { subjectInstance ->
-                                BaseData.BaseDataClass.BaseDataSubjectInstance(
-                                    subject = subjectInstance.subjectInstance.subjectName,
-                                    teachers = subjectInstance.subjectInstance.teacherName.splitWithKnownValuesBySpace(knownTeacherNames),
-                                )
-                            },
-                            courses = baseDataClass.courses.map { course ->
-                                BaseData.BaseDataClass.BaseDataCourse(
-                                    name = course.course.courseName,
-                                    teachers = course.course.courseTeacherName.splitWithKnownValuesBySpace(knownTeacherNames)
-                                )
-                            }
-                        )
-                    }
-                )
-            )
+    suspend fun getHolidays(
+        authentication: Authentication = this.authentication
+    ): Response<Set<LocalDate>> {
+        val baseData = getMobileBaseDataStudent(authentication).let {
+            if (it is Response.Success) it.data
+            else return it as Response.Error
         }
-        throw IllegalStateException()
+        return Response.Success(data = baseData.prettifiedHolidays)
+    }
+
+    suspend fun getSchoolName(
+        authentication: Authentication = this.authentication
+    ): Response<String?> {
+        val wPlanStudentBaseData = getWPlanBaseDataStudent(authentication).let {
+            if (it is Response.Success) it.data
+            else return it as Response.Error
+        }
+        wPlanStudentBaseData.head.schoolName?.name?.let { return Response.Success(it) }
+
+        return Response.Success(null)
     }
 }
 

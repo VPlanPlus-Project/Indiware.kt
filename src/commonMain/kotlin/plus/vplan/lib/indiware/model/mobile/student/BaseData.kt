@@ -1,5 +1,6 @@
 package plus.vplan.lib.indiware.model.mobile.student
 
+import kotlinx.datetime.LocalDate
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import nl.adaptivity.xmlutil.serialization.XmlChildrenName
@@ -21,6 +22,16 @@ data class MobileStudentBaseData(
     @Serializable
     val header: Header
 ) {
+
+    companion object {
+        private val holidayFormat = LocalDate.Format {
+            yearTwoDigits(2000)
+            monthNumber()
+            dayOfMonth()
+        }
+    }
+
+    val prettifiedHolidays: Set<LocalDate> = this.holidays.map { LocalDate.parse(it, holidayFormat) }.toSet()
 
     @SerialName("Kopf")
     @Serializable
