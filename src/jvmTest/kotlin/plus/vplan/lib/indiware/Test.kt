@@ -8,6 +8,7 @@ import io.ktor.client.plugins.logging.LogLevel
 import io.ktor.client.plugins.logging.Logger
 import io.ktor.client.plugins.logging.Logging
 import kotlinx.coroutines.runBlocking
+import kotlinx.datetime.LocalDate
 import plus.vplan.lib.indiware.source.Authentication
 import plus.vplan.lib.indiware.source.IndiwareClient
 import plus.vplan.lib.indiware.source.Response
@@ -64,5 +65,11 @@ class Test {
                 println("${access.indiwareSchoolId}: $schoolName")
             }
         }
+    }
+
+    @Test
+    fun `Test data`() = runBlocking {
+        val mobile = indiware.getMobileDataStudent(date = LocalDate(2025, 6, 10))
+        println(mobile)
     }
 }
