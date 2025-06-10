@@ -50,8 +50,8 @@ class IndiwareClient(
 
     suspend fun testConnection(
         authentication: Authentication = this.authentication,
-    ): Response<Unit> {
-        safeRequest(onError = { return it }) {
+    ): TestConnectionResult {
+        safeRequest(onError = { return TestConnectionResult.Error(it) }) {
             val response = client.get {
                 url(
                     scheme = "https",
@@ -61,12 +61,21 @@ class IndiwareClient(
                 authentication.useInRequest(this)
             }
 
-            response.handleUnsuccessfulStates()?.let { return it }
-
-            return if (response.status == HttpStatusCode.OK) {
-                Response.Success(data = Unit)
-            } else {
-                Response.Error.Other("Unexpected status code: ${response.status.value} (${response.status.description})")
+            when (response.status) {
+                HttpStatusCode.NotFound -> return TestConnectionResult.NotFound
+                HttpStatusCode.Unauthorized -> return TestConnectionResult.Unauthorized
+                HttpStatusCode.OK -> return TestConnectionResult.Success
+                else -> {
+                    val error = response.handleUnsuccessfulStates()
+                    if (error != null) return TestConnectionResult.Error(error)
+                    else {
+                        return TestConnectionResult.Error(
+                            Response.Error.Other(
+                                "Unexpected status code: ${response.status.value} (${response.status.description}) - body: ${response.bodyAsText()}"
+                            )
+                        )
+                    }
+                }
             }
         }
 
@@ -315,3 +324,10 @@ internal fun String.sanitizeRawPayload() =
         .dropLastWhile { it != '>' }
         .lines()
         .joinToString("\n") { it.trim() }
+
+sealed class TestConnectionResult {
+    data object NotFound : TestConnectionResult()
+    data object Unauthorized : TestConnectionResult()
+    data object Success : TestConnectionResult()
+    data class Error(val error: Response.Error) : TestConnectionResult()
+}
