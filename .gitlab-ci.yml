@@ -3,35 +3,22 @@ stages:
     - release
 
 variables:
-    GRADLE_USER_HOME: "$CI_PROJECT_DIR/.gradle"
     PROJECT_MAVEN_USERNAME: "gitlab-ci-token"
     PROJECT_MAVEN_PASSWORD: "$CI_JOB_TOKEN"
 
-cache:
-    key:
-        files:
-            - gradle/libs.versions.toml
-        prefix: "$CI_JOB_NAME"
-    paths:
-        - $CI_PROJECT_DIR/.gradle/caches
-        - $CI_PROJECT_DIR/.gradle/wrapper
-        - build
-    policy: pull-push
-
 .default-job:
-    image: openjdk:21-jdk
     before_script:
         - chmod +x ./gradlew
 
 build:merge-request:
     extends: .default-job
     stage: build
+    tags:
+        - android
     rules:
         - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
     script:
         - ./gradlew build --scan --no-daemon
-    tags:
-        - ci
     artifacts:
         paths:
             - build/libs/*.jar
@@ -41,31 +28,10 @@ build:merge-request:
 release:build-and-publish:
     extends: .default-job
     stage: release
+    tags:
+        - android
     rules:
         - if: '$CI_COMMIT_BRANCH == "3-gitlab-migration" && $CI_PIPELINE_SOURCE == "push"'
-    variables:
-        ANDROID_SDK_ROOT: "$CI_PROJECT_DIR/android-sdk"
-        ANDROID_HOME: "$ANDROID_SDK_ROOT"
-        PATH: "$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/emulator:$ANDROID_HOME/tools:$ANDROID_HOME/tools/bin:$ANDROID_HOME/platform-tools:$PATH"
-
-    cache:
-        key: android-sdk-cache
-        paths:
-            - android-sdk/
-
-    before_script:
-        - mkdir -p "$ANDROID_SDK_ROOT/cmdline-tools"
-        - |
-            if [ ! -d "$ANDROID_SDK_ROOT/cmdline-tools/latest" ]; then
-              wget https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O cmdline-tools.zip
-              unzip -q cmdline-tools.zip -d "$ANDROID_SDK_ROOT/cmdline-tools"
-              mv "$ANDROID_SDK_ROOT/cmdline-tools/cmdline-tools" "$ANDROID_SDK_ROOT/cmdline-tools/latest"
-            fi
-        - yes | sdkmanager --licenses
-        - sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.2"
-        - echo 'Acquire::http { Proxy "http://parabolix.intranet.familie-babies.de:3142"; }; Acquire::https { Proxy "https://"; };' | tee /etc/apt/apt.conf.d/00proxy
-        - apt-get update && apt-get install -y git
-        - chmod +x ./gradlew
     script:
         - |
             YEAR=$(date +'%Y')
@@ -84,7 +50,7 @@ release:build-and-publish:
             echo "version=$NEW_TAG" >> local.properties
             echo "NEW_TAG=$NEW_TAG" >> build.env
 
-        - ./gradlew clean build publish --no-daemon
+        - ./gradlew clean publishAllPublicationsToReleasesRepository --no-daemon
 
 create:gitlab-release:
     stage: release
