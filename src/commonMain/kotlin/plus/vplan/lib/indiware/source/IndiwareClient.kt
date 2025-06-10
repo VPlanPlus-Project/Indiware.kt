@@ -21,6 +21,7 @@ import nl.adaptivity.xmlutil.serialization.XML
 import nl.adaptivity.xmlutil.serialization.XmlConfig.Companion.IGNORING_UNKNOWN_CHILD_HANDLER
 import plus.vplan.lib.indiware.model.mobile.student.MobileStudentBaseData
 import plus.vplan.lib.indiware.model.mobile.student.MobileStudentData
+import plus.vplan.lib.indiware.model.splan.student.SPlanBaseDataStudent
 import plus.vplan.lib.indiware.model.vplan.student.VPlanBaseDataStudent
 import plus.vplan.lib.indiware.model.wplan.student.WPlanStudentBaseData
 
@@ -220,6 +221,38 @@ class IndiwareClient(
         throw IllegalStateException("This should never happen, if it does, please report a bug.")
     }
 
+    suspend fun getSPlanBaseDataStudent(
+        authentication: Authentication = this.authentication
+    ): Response<SPlanBaseDataStudent> {
+        safeRequest(onError = { return it }) {
+            val response = client.get {
+                url(
+                    scheme = "https",
+                    host = "stundenplan24.de",
+                    path = "/${authentication.indiwareSchoolId}/splan/sdaten/splank.xml"
+                )
+                authentication.useInRequest(this)
+            }
+
+            response.handleUnsuccessfulStates()?.let { return it }
+            val sPlanBaseDataStudent = try {
+                xml.decodeFromString(
+                    deserializer = SPlanBaseDataStudent.serializer(),
+                    string = response.bodyAsText().sanitizeRawPayload()
+                ).copy(raw = response.bodyAsText().sanitizeRawPayload())
+            } catch (e: Exception) {
+                throw PayloadParsingException(
+                    url = response.request.url.toString(),
+                    cause = e
+                )
+            }
+
+            return Response.Success(data = sPlanBaseDataStudent)
+        }
+
+        throw IllegalStateException("This should never happen, if it does, please report a bug.")
+    }
+
     suspend fun getHolidays(
         authentication: Authentication = this.authentication
     ): Response<Set<LocalDate>> {
@@ -228,7 +261,6 @@ class IndiwareClient(
             else if (it is Response.Error.OnlineError.NotFound) null
             else return it as Response.Error
         }
-
         baseData?.holidays?.ifEmpty { null }
             ?.let { return Response.Success(baseData.prettifiedHolidays) }
 
@@ -237,7 +269,6 @@ class IndiwareClient(
             else if (it is Response.Error.OnlineError.NotFound) null
             else return it as Response.Error
         }
-
         vPlanBaseDataStudent?.holidays?.ifEmpty { null }
             ?.let { return Response.Success(vPlanBaseDataStudent.prettifiedHolidays) }
 
@@ -246,9 +277,16 @@ class IndiwareClient(
             else if (it is Response.Error.OnlineError.NotFound) null
             else return it as Response.Error
         }
-
         wPlanBaseDataStudent?.holidays?.ifEmpty { null }
             ?.let { return Response.Success(wPlanBaseDataStudent.prettifiedHolidays) }
+
+        val sPlanBaseDataStudent = getSPlanBaseDataStudent(authentication).let {
+            if (it is Response.Success) it.data
+            else if (it is Response.Error.OnlineError.NotFound) null
+            else return it as Response.Error
+        }
+        sPlanBaseDataStudent?.holidays?.ifEmpty { null }
+            ?.let { return Response.Success(sPlanBaseDataStudent.prettifiedHolidays) }
 
         return Response.Success(data = emptySet())
     }
@@ -274,9 +312,20 @@ class IndiwareClient(
         }
         vPlanBaseDataStudent?.head?.schoolName?.name?.let { return Response.Success(it) }
 
+        val sPlanBaseDataStudent = getSPlanBaseDataStudent(authentication).let {
+            if (it is Response.Success) it.data
+            else if (it is Response.Error.OnlineError.NotFound) null
+            else return it as Response.Error
+        }
+        sPlanBaseDataStudent?.head?.schoolName?.name?.let { return Response.Success(it) }
+
         return Response.Success(null)
     }
 
+    /**
+     * Fetches all classes from the available data sources, intelligently combining, deduplicating, and trimming them.
+     * @return A [Response.Success] with a set of class names, or an error if any of the data sources fail critically, which means, that a 404 will be tolerated.
+     */
     suspend fun getAllClassesIntelligent(
         authentication: Authentication = this.authentication
     ): Response<Set<String>> {
@@ -286,7 +335,6 @@ class IndiwareClient(
             else if (it is Response.Error.OnlineError.NotFound) null
             else return it as Response.Error
         }
-
         classes.addAll(mobileBaseData?.classes.orEmpty().map { it.name.name })
 
         val vPlanBaseDataStudent = getVPlanBaseDataStudent(authentication).let {
@@ -294,7 +342,6 @@ class IndiwareClient(
             else if (it is Response.Error.OnlineError.NotFound) null
             else return it as Response.Error
         }
-
         classes.addAll(vPlanBaseDataStudent?.actions.orEmpty().map { it.className.name })
 
         val wPlanStudentBaseData = getWPlanBaseDataStudent(authentication).let {
@@ -302,10 +349,31 @@ class IndiwareClient(
             else if (it is Response.Error.OnlineError.NotFound) null
             else return it as Response.Error
         }
-
         classes.addAll(wPlanStudentBaseData?.classes.orEmpty().map { it.name.name })
 
+        val sPlanBaseDataStudent = getSPlanBaseDataStudent(authentication).let {
+            if (it is Response.Success) it.data
+            else if (it is Response.Error.OnlineError.NotFound) null
+            else return it as Response.Error
+        }
+        classes.addAll(sPlanBaseDataStudent?.classes.orEmpty().map { it.name.name })
+
         return Response.Success(classes.map { it.trim() }.filterNot { it.isBlank() }.toSet())
+    }
+
+    suspend fun getAllTeachersIntelligent(
+        authentication: Authentication = this.authentication
+    ): Response<Set<String>> {
+        val teachers = mutableSetOf<String>()
+
+        val sPlanBaseDataStudent = getSPlanBaseDataStudent(authentication).let {
+            if (it is Response.Success) it.data
+            else if (it is Response.Error.OnlineError.NotFound) null
+            else return it as Response.Error
+        }
+        teachers.addAll(sPlanBaseDataStudent?.classes.orEmpty().flatMap { it.lessons.mapNotNull { l -> l.teacher.name.ifBlank { null } } })
+
+        return Response.Success(teachers.map { it.trim() }.filterNot { it.isBlank() }.toSet())
     }
 }
 
