@@ -65,13 +65,4 @@ class CommonGreetingTest {
         assertTrue(baseData is Response.Success)
         println(baseData.data)
     }
-
-    @Test
-    fun `Get school name`() {
-        runBlocking {
-            val schoolName = indiwareClient.getSchoolName()
-            assertTrue(schoolName is Response.Success)
-            println(schoolName.data)
-        }
-    }
 }

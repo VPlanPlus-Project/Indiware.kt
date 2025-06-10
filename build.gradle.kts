@@ -37,9 +37,6 @@ kotlin {
             implementation(libs.kotlinx.serialization.json)
 
             implementation(libs.ktor.client.core)
-            implementation(libs.ktor.client.logging)
-
-            implementation(libs.napier)
 
             implementation(libs.xmlutil.core)
             implementation(libs.xmlutil.serialization)
@@ -47,6 +44,8 @@ kotlin {
         commonTest.dependencies {
             implementation(libs.kotlin.test)
             implementation(libs.ktor.client.cio)
+            implementation(libs.ktor.client.logging)
+            implementation(libs.napier)
         }
     }
 }

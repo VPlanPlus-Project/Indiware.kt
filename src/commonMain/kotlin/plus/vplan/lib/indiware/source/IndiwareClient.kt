@@ -8,24 +8,17 @@ import io.ktor.client.request.get
 import io.ktor.client.request.url
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
+import io.ktor.client.statement.request
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.CancellationException
 import kotlinx.datetime.LocalDate
-import kotlinx.datetime.LocalDateTime
-import kotlinx.datetime.LocalTime
-import kotlinx.datetime.atDate
-import kotlinx.datetime.format
-import kotlinx.datetime.format.Padding
-import kotlinx.datetime.format.char
 import nl.adaptivity.xmlutil.ExperimentalXmlUtilApi
 import nl.adaptivity.xmlutil.XmlDeclMode
 import nl.adaptivity.xmlutil.core.XmlVersion
 import nl.adaptivity.xmlutil.serialization.XML
 import nl.adaptivity.xmlutil.serialization.XmlConfig.Companion.IGNORING_UNKNOWN_CHILD_HANDLER
-import plus.vplan.lib.indiware.model.common.SubstitutionPlan
-import plus.vplan.lib.indiware.model.common.SubstitutionPlanLesson
 import plus.vplan.lib.indiware.model.mobile.student.MobileStudentBaseData
-import plus.vplan.lib.indiware.model.mobile.student.VPlan
+import plus.vplan.lib.indiware.model.vplan.student.VPlanBaseDataStudent
 import plus.vplan.lib.indiware.model.wplan.student.WPlanStudentBaseData
 
 @Suppress("unused")
@@ -33,11 +26,18 @@ class IndiwareClient(
     val authentication: Authentication,
     val client: HttpClient = HttpClient()
 ) {
+    constructor(client: HttpClient): this(
+        authentication = Authentication(
+            indiwareSchoolId = "000000",
+            username = "username",
+            password = "password"
+        ),
+        client = client
+    )
     @OptIn(ExperimentalXmlUtilApi::class)
     private val xml: XML = XML {
         xmlVersion = XmlVersion.XML10
         xmlDeclMode = XmlDeclMode.Auto
-        indentString = "  "
         repairNamespaces = true
         defaultPolicy {
             unknownChildHandler = IGNORING_UNKNOWN_CHILD_HANDLER
@@ -58,10 +58,17 @@ class IndiwareClient(
             }
             response.handleUnsuccessfulStates()?.let { return it }
 
-            val mobileBaseDataStudent = xml.decodeFromString(
-                deserializer = MobileStudentBaseData.serializer(),
-                string = response.bodyAsText().dropWhile { it != '<' }
-            )
+            val mobileBaseDataStudent = try {
+                xml.decodeFromString(
+                    deserializer = MobileStudentBaseData.serializer(),
+                    string = response.bodyAsText().sanitizeRawPayload()
+                )
+            } catch (e: Exception) {
+                throw PayloadParsingException(
+                    url = response.request.url.toString(),
+                    cause = e
+                )
+            }
 
             val result = Response.Success(data = mobileBaseDataStudent)
             return result
@@ -84,10 +91,17 @@ class IndiwareClient(
             }
 
             response.handleUnsuccessfulStates()?.let { return it }
-            val wPlanBaseDataStudent = xml.decodeFromString(
-                deserializer = WPlanStudentBaseData.serializer(),
-                string = response.bodyAsText().dropWhile { it != '<' }
-            )
+            val wPlanBaseDataStudent = try {
+                xml.decodeFromString(
+                    deserializer = WPlanStudentBaseData.serializer(),
+                    string = response.bodyAsText().sanitizeRawPayload()
+                )
+            } catch (e: Exception) {
+                throw PayloadParsingException(
+                    url = response.request.url.toString(),
+                    cause = e
+                )
+            }
 
             return Response.Success(data = wPlanBaseDataStudent)
         }
@@ -95,81 +109,36 @@ class IndiwareClient(
         throw IllegalStateException("This should never happen, if it does, please report a bug.")
     }
 
-    suspend fun getSubstitutionPlan(
-        date: LocalDate,
-        authentication: Authentication = this.authentication,
-        knownRoomNames: List<String> = emptyList(),
-        knownTeacherNames: List<String> = emptyList()
-    ): Response<SubstitutionPlan> {
+    suspend fun getVPlanBaseDataStudent(
+        authentication: Authentication
+    ): Response<VPlanBaseDataStudent> {
         safeRequest(onError = { return it }) {
             val response = client.get {
                 url(
                     scheme = "https",
                     host = "stundenplan24.de",
-                    path = "/${authentication.indiwareSchoolId}/mobil/mobdaten/PlanKl${date.format(LocalDate.Format {
-                        year()
-                        monthNumber(Padding.ZERO)
-                        dayOfMonth(Padding.ZERO)
-                    })}.xml"
+                    path = "/${authentication.indiwareSchoolId}/vplan/vdaten/VplanKl.xml"
                 )
                 authentication.useInRequest(this)
             }
-            response.handleUnsuccessfulStates()?.let { return it }
-            val substitutionPlan = xml.decodeFromString(
-                deserializer = VPlan.serializer(),
-                string = response.bodyAsText().dropWhile { it != '<' }
-            )
 
-            val createdAtFormat = LocalDateTime.Format {
-                dayOfMonth(Padding.ZERO)
-                char('.')
-                monthNumber(Padding.ZERO)
-                char('.')
-                year()
-                chars(", ")
-                hour(Padding.ZERO)
-                char(':')
-                minute(Padding.ZERO)
+            response.handleUnsuccessfulStates()?.let { return it }
+            val vPlanBaseDataStudent = try {
+                xml.decodeFromString(
+                    deserializer = VPlanBaseDataStudent.serializer(),
+                    string = response.bodyAsText().sanitizeRawPayload()
+                )
+            } catch (e: Exception) {
+                throw PayloadParsingException(
+                    url = response.request.url.toString(),
+                    cause = e
+                )
             }
 
-            val createdAt = LocalDateTime.parse(
-                substitutionPlan.head.timestamp.value,
-                format = createdAtFormat
-            )
-
-            return Response.Success(
-                data = SubstitutionPlan(
-                    date = date,
-                    info = substitutionPlan.info.joinToString("\n").ifBlank { null },
-                    classes = substitutionPlan.classes.map { clazz ->
-                        SubstitutionPlan.SubstitutionPlanClass(
-                            name = clazz.name.name,
-                            lessons = clazz.lessons.map { lesson ->
-                                SubstitutionPlanLesson(
-                                    lessonNumber = lesson.lessonNumber.value,
-                                    subject = lesson.subject.value.let {
-                                        if (it == "---") return@let null
-                                        else return@let it
-                                    },
-                                    isSubjectChanged = lesson.subject.changed.orEmpty().isNotBlank(),
-                                    teachers = lesson.teacher.value.splitWithKnownValuesBySpace(knownTeacherNames),
-                                    areTeachersChanged = lesson.teacher.changed.orEmpty().isNotBlank(),
-                                    rooms = lesson.room.value.splitWithKnownValuesBySpace(knownRoomNames),
-                                    areRoomsChanged = lesson.room.changed.orEmpty().isNotBlank(),
-                                    info = lesson.info.value.ifBlank { null },
-                                    start = LocalTime.parseOrNull(lesson.start.value)?.atDate(date),
-                                    end = LocalTime.parseOrNull(lesson.end.value)?.atDate(date),
-                                    date = date
-                                )
-                            }
-                        )
-                    },
-                    createdAt = createdAt
-                )
-            )
-
+            return Response.Success(data = vPlanBaseDataStudent)
         }
-        throw IllegalStateException()
+
+        throw IllegalStateException("This should never happen, if it does, please report a bug.")
     }
 
     suspend fun getHolidays(
@@ -177,19 +146,51 @@ class IndiwareClient(
     ): Response<Set<LocalDate>> {
         val baseData = getMobileBaseDataStudent(authentication).let {
             if (it is Response.Success) it.data
+            else if (it is Response.Error.OnlineError.NotFound) null
             else return it as Response.Error
         }
-        return Response.Success(data = baseData.prettifiedHolidays)
+
+        baseData?.holidays?.ifEmpty { null }?.let { return Response.Success(baseData.prettifiedHolidays) }
+
+        val vPlanBaseDataStudent = getVPlanBaseDataStudent(authentication).let {
+            if (it is Response.Success) it.data
+            else if (it is Response.Error.OnlineError.NotFound) null
+            else return it as Response.Error
+        }
+
+        vPlanBaseDataStudent?.holidays?.ifEmpty { null }?.let { return Response.Success(vPlanBaseDataStudent.prettifiedHolidays) }
+
+        val wPlanBaseDataStudent = getWPlanBaseDataStudent(authentication).let {
+            if (it is Response.Success) it.data
+            else if (it is Response.Error.OnlineError.NotFound) null
+            else return it as Response.Error
+        }
+
+        wPlanBaseDataStudent?.holidays?.ifEmpty { null }?.let { return Response.Success(wPlanBaseDataStudent.prettifiedHolidays) }
+
+        return Response.Success(data = emptySet())
     }
 
+    /**
+     * Fetches the school name, trying all of the available data sources if necessary.
+     * @return If successful, returns the school name as a [Response.Success] with the name as data. If the name is null, it was not found in any of the data sources.
+     */
     suspend fun getSchoolName(
         authentication: Authentication = this.authentication
     ): Response<String?> {
         val wPlanStudentBaseData = getWPlanBaseDataStudent(authentication).let {
             if (it is Response.Success) it.data
+            else if (it is Response.Error.OnlineError.NotFound) null
             else return it as Response.Error
         }
-        wPlanStudentBaseData.head.schoolName?.name?.let { return Response.Success(it) }
+        wPlanStudentBaseData?.head?.schoolName?.name?.let { return Response.Success(it) }
+
+        val vPlanBaseDataStudent = getVPlanBaseDataStudent(authentication).let {
+            if (it is Response.Success) it.data
+            else if (it is Response.Error.OnlineError.NotFound) null
+            else return it as Response.Error
+        }
+        vPlanBaseDataStudent?.head?.schoolName?.name?.let { return Response.Success(it) }
 
         return Response.Success(null)
     }
@@ -213,31 +214,6 @@ internal inline fun safeRequest(
     }
 }
 
-internal fun String.splitWithKnownValuesBySpace(values: List<String>): List<String> {
-    if (values.isEmpty()) {
-        return if (this.contains(",")) this.split(",").map { it.trim() }
-        else this.split(" ").map { it.trim() }.filter { it.isNotBlank() }
-    }
-    val regex = Regex(values.joinToString("|") { Regex.escape(it) })
-    val matches = mutableListOf<String>()
-    var remaining = this
-    while (true) {
-        val match = regex.find(remaining) ?: break
-        matches.add(match.value)
-        remaining = remaining.removeRange(match.range).trim()
-    }
-
-    return if (remaining.isEmpty()) matches else emptyList()
-}
-
-internal fun LocalTime.Companion.parseOrNull(time: String): LocalTime? {
-    return try {
-        parse(time)
-    } catch (_: IllegalArgumentException) {
-        null
-    }
-}
-
 internal suspend inline fun HttpResponse.handleUnsuccessfulStates(): Response.Error? {
     if (this.status == HttpStatusCode.Unauthorized) return Response.Error.OnlineError.Unauthorized
     if (this.status == HttpStatusCode.NotFound) return Response.Error.OnlineError.NotFound
@@ -248,3 +224,19 @@ internal suspend inline fun HttpResponse.handleUnsuccessfulStates(): Response.Er
     }
     return null
 }
+
+class PayloadParsingException(
+    url: String,
+    cause: Throwable? = null
+): Exception() {
+    override val message: String? = "Failed to parse payload from $url. This is unexpected.\nPlease file a bug report at the official repository at $PROJECT_URL:\n${cause?.stackTraceToString()}"
+}
+
+internal const val PROJECT_URL = "https://gitlab.jvbabi.es/vplanplus/lib/Indiware-kt or https://github.com/VPlanPlus-Project/Indiware.kt"
+
+internal fun String.sanitizeRawPayload() =
+    this
+        .dropWhile { it != '<' }
+        .dropLastWhile { it != '>' }
+        .lines()
+        .joinToString("\n") { it.trim() }

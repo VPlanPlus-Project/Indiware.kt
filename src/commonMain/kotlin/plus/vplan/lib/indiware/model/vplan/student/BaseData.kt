@@ -1,4 +1,4 @@
-package plus.vplan.lib.indiware.model.wplan.student
+package plus.vplan.lib.indiware.model.vplan.student
 
 import kotlinx.datetime.LocalDate
 import kotlinx.serialization.SerialName
@@ -7,12 +7,11 @@ import nl.adaptivity.xmlutil.serialization.XmlChildrenName
 import nl.adaptivity.xmlutil.serialization.XmlValue
 
 @Serializable
-@SerialName("splan")
-data class WPlanStudentBaseData(
-    @SerialName("Kopf") val head: Head,
-    @SerialName("FreieTage")
-    @XmlChildrenName("ft")
-    val holidays: List<String>,
+@SerialName("vp")
+data class VPlanBaseDataStudent(
+    @SerialName("kopf") val head: Head,
+    @SerialName("freietage")
+    @XmlChildrenName("ft") val holidays: List<String>,
 ) {
     companion object {
         private val holidayFormat = LocalDate.Format {
@@ -25,9 +24,9 @@ data class WPlanStudentBaseData(
     val prettifiedHolidays: Set<LocalDate> = this.holidays.map { LocalDate.parse(it, holidayFormat) }.toSet()
 
     @Serializable
-    @SerialName("Kopf")
+    @SerialName("kopf")
     data class Head(
-        @SerialName("schulname") val schoolName: SchoolName? = null,
+        @SerialName("schulname") val schoolName: SchoolName? = null
     ) {
         @Serializable
         @SerialName("schulname")
