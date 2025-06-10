@@ -55,6 +55,10 @@ release:build-and-publish:
 
         - ./gradlew clean publishAllPublicationsToReleasesRepository --no-daemon
 
+    artifacts:
+        reports:
+            dotenv: build.env
+
 create:gitlab-release:
     stage: release
     needs:
