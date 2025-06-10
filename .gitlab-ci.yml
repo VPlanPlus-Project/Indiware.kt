@@ -32,7 +32,7 @@ release:build-and-publish:
     tags:
         - android
     rules:
-        - if: '$CI_COMMIT_BRANCH == "3-gitlab-migration" && $CI_PIPELINE_SOURCE == "push"'
+        - if: '$CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE == "push"'
     before_script:
         - echo "Using Android SDK at $ANDROID_HOME"
     script:
