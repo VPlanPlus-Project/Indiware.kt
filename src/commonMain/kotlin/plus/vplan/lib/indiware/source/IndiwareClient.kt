@@ -48,6 +48,31 @@ class IndiwareClient(
         }
     }
 
+    suspend fun testConnection(
+        authentication: Authentication = this.authentication,
+    ): Response<Unit> {
+        safeRequest(onError = { return it }) {
+            val response = client.get {
+                url(
+                    scheme = "https",
+                    host = "stundenplan24.de",
+                    path = "/${authentication.indiwareSchoolId}/mobil/mobdaten/Klassen.xml"
+                )
+                authentication.useInRequest(this)
+            }
+
+            response.handleUnsuccessfulStates()?.let { return it }
+
+            return if (response.status == HttpStatusCode.OK) {
+                Response.Success(data = Unit)
+            } else {
+                Response.Error.Other("Unexpected status code: ${response.status.value} (${response.status.description})")
+            }
+        }
+
+        throw IllegalStateException("This should never happen, if it does, please report a bug.")
+    }
+
     suspend fun getMobileBaseDataStudent(
         authentication: Authentication = this.authentication,
     ): Response<MobileStudentBaseData> {
