@@ -33,7 +33,7 @@ release:build-and-publish:
     rules:
         - if: '$CI_COMMIT_BRANCH == "3-gitlab-migration" && $CI_PIPELINE_SOURCE == "push"'
     before_script:
-        - echo "Android Home: $ANDROID_HOME"
+        - echo "Using Android SDK at $ANDROID_HOME"
     script:
         - |
             YEAR=$(date +'%Y')
