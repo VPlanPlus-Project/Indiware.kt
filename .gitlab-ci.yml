@@ -1,0 +1,70 @@
+stages:
+    - build
+    - release
+
+variables:
+    PROJECT_MAVEN_USERNAME: "gitlab-ci-token"
+    PROJECT_MAVEN_PASSWORD: "$CI_JOB_TOKEN"
+    ANDROID_HOME: "/home/gitlab-runner/android-sdk"
+
+.default-job:
+    before_script:
+        - chmod +x ./gradlew
+
+build:merge-request:
+    extends: .default-job
+    stage: build
+    tags:
+        - android
+    rules:
+        - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    script:
+        - ./gradlew build --scan --no-daemon
+    artifacts:
+        paths:
+            - build/libs/*.jar
+        expire_in: 1 day
+        name: "build-artifacts-$CI_COMMIT_SHORT_SHA"
+
+release:build-and-publish:
+    extends: .default-job
+    stage: release
+    tags:
+        - android
+    rules:
+        - if: '$CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE == "push"'
+    before_script:
+        - echo "Using Android SDK at $ANDROID_HOME"
+    script:
+        - |
+            YEAR=$(date +'%Y')
+            MONTH=$(date +'%m')
+            TAG_PREFIX="v${YEAR}.${MONTH}."
+            
+            LAST_INDEX=$(git tag -l "${TAG_PREFIX}*" | \
+              sed -E "s/${TAG_PREFIX}([0-9]+)/\1/" | sort -n | tail -1)
+            if [ -z "$LAST_INDEX" ]; then
+              NEW_INDEX=1
+            else
+              NEW_INDEX=$((LAST_INDEX + 1))
+            fi
+            NEW_TAG="${TAG_PREFIX}${NEW_INDEX}"
+            echo "Version: $NEW_TAG"
+            echo "version=$NEW_TAG" >> local.properties
+            echo "NEW_TAG=$NEW_TAG" >> build.env
+
+        - ./gradlew clean publishAllPublicationsToReleasesRepository --no-daemon
+
+create:gitlab-release:
+    stage: release
+    needs:
+        - release:build-and-publish
+    image: registry.gitlab.com/gitlab-org/release-cli:latest
+    rules:
+        - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    script:
+        - echo "Releasing ${NEW_TAG}"
+    release:
+        tag_name: $NEW_TAG
+        ref: $CI_COMMIT_SHA
+        description: "Automated release $NEW_TAG"
