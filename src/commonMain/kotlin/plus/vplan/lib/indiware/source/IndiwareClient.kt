@@ -111,7 +111,7 @@ class IndiwareClient(
     }
 
     suspend fun getVPlanBaseDataStudent(
-        authentication: Authentication
+        authentication: Authentication = this.authentication
     ): Response<VPlanBaseDataStudent> {
         safeRequest(onError = { return it }) {
             val response = client.get {
