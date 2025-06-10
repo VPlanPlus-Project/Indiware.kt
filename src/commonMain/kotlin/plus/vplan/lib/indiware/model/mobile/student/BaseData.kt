@@ -3,6 +3,7 @@ package plus.vplan.lib.indiware.model.mobile.student
 import kotlinx.datetime.LocalDate
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 import nl.adaptivity.xmlutil.serialization.XmlChildrenName
 import nl.adaptivity.xmlutil.serialization.XmlSerialName
 import nl.adaptivity.xmlutil.serialization.XmlValue
@@ -20,7 +21,10 @@ data class MobileStudentBaseData(
 
     @SerialName("Kopf")
     @Serializable
-    val header: Header
+    val header: Header,
+
+    @Transient
+    val raw: String = ""
 ) {
 
     companion object {

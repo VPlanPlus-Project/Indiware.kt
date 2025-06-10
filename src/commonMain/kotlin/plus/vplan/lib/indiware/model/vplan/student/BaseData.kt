@@ -3,6 +3,7 @@ package plus.vplan.lib.indiware.model.vplan.student
 import kotlinx.datetime.LocalDate
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 import nl.adaptivity.xmlutil.serialization.XmlChildrenName
 import nl.adaptivity.xmlutil.serialization.XmlValue
 
@@ -12,6 +13,9 @@ data class VPlanBaseDataStudent(
     @SerialName("kopf") val head: Head,
     @SerialName("freietage")
     @XmlChildrenName("ft") val holidays: List<String>,
+
+    @Transient
+    val raw: String = ""
 ) {
     companion object {
         private val holidayFormat = LocalDate.Format {
