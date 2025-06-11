@@ -8,7 +8,7 @@ import kotlin.test.assertTrue
 class IntelligentTest {
     @Test
     fun `Get classes`() = runBlocking {
-        val classes = (indiwareClient.getAllClassesIntelligent() as Response.Success).data
+        val classes = (commonIndiwareClient.getAllClassesIntelligent() as Response.Success).data
         println(classes)
         assertTrue("Classes should not be empty") { classes.isNotEmpty() }
     }

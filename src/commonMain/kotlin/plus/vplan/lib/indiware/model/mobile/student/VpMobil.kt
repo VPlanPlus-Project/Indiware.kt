@@ -161,11 +161,18 @@ data class MobileStudentData(
         @Serializable
         @SerialName("Std")
         data class ClassLessonStudent(
-            @SerialName("Le") val teacher: Teacher
+            @SerialName("Le") val teacher: Teacher,
+            @SerialName("Ra") val room: Room
         ) {
             @Serializable
             @SerialName("Le")
             data class Teacher(
+                @XmlValue val name: String
+            )
+
+            @Serializable
+            @SerialName("Ra")
+            data class Room(
                 @XmlValue val name: String
             )
         }

@@ -89,6 +89,30 @@ class Test {
     }
 
     @Test
+    fun `Get rooms`() {
+        val file = File("./access.csv")
+        if (!file.exists()) {
+            Napier.e("File not found: ${file.absolutePath}")
+            return
+        }
+
+        val lines = file.readLines().drop(1)
+        val accessList = lines.map {
+            val (indiwareId, username, password, _) = it.split(",")
+            Authentication(indiwareId, username.replace("\"", ""), password.replace("\"", ""))
+        }
+        runBlocking {
+            accessList.forEach { access ->
+                val rooms = indiwareClient.getAllRoomsIntelligent(access).let {
+                    if (it !is Response.Success) println(it)
+                    it as? Response.Success
+                }
+                println("School ID: ${access.indiwareSchoolId}, Rooms: ${rooms?.data?.joinToString()}")
+            }
+        }
+    }
+
+    @Test
     fun `Test data`() = runBlocking {
         val mobile = indiwareClient.getMobileDataStudent(date = LocalDate(2025, 6, 10))
         println(mobile)

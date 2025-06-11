@@ -441,9 +441,46 @@ class IndiwareClient(
                 else return it as Response.Error
             }
             teachers.addAll(wPlanData?.classes.orEmpty().flatMap { it.subjectInstanceWrapper.mapNotNull { si -> si.subjectInstance.teacherName?.ifBlank { null } } })
+            teachers.addAll(wPlanData?.classes.orEmpty().flatMap { it.lessons.mapNotNull { l -> l.teacher.name.ifBlank { null } } })
         }
 
         return Response.Success(teachers.handleSchoolEntities())
+    }
+
+    @OptIn(ExperimentalTime::class)
+    suspend fun getAllRoomsIntelligent(
+        authentication: Authentication = this.authentication
+    ): Response<Set<String>> {
+        val rooms = mutableSetOf<String>()
+
+        val sPlanBaseDataStudent = getSPlanBaseDataStudent(authentication).let {
+            if (it is Response.Success) it.data
+            else if (it is Response.Error.OnlineError.NotFound) null
+            else return it as Response.Error
+        }
+        rooms.addAll(sPlanBaseDataStudent?.classes.orEmpty().flatMap { it.lessons.mapNotNull { l -> l.room.name.ifBlank { null } } }.flatMap { it.split(",") })
+
+        val weekStart = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date.let {
+            it.minus(DatePeriod(days = it.dayOfWeek.isoDayNumber.minus(1)))
+        }
+        if (sPlanBaseDataStudent == null) repeat(5) { i ->
+            val date = weekStart.plus(DatePeriod(days = i))
+            val data = getMobileDataStudent(authentication = authentication, date = date).let {
+                if (it is Response.Success) it.data
+                else if (it is Response.Error.OnlineError.NotFound) null
+                else return it as Response.Error
+            }
+            rooms.addAll(data?.classes.orEmpty().flatMap { it.lessons.mapNotNull { l -> l.room.name.ifBlank { null } } })
+
+            val wPlanData = getWPlanDataStudent(authentication = authentication, date = date).let {
+                if (it is Response.Success) it.data
+                else if (it is Response.Error.OnlineError.NotFound) null
+                else return it as Response.Error
+            }
+            rooms.addAll(wPlanData?.classes.orEmpty().flatMap { it.lessons.mapNotNull { l -> l.room.name.ifBlank { null } } })
+        }
+
+        return Response.Success(rooms.handleSchoolEntities())
     }
 }
 
@@ -453,14 +490,17 @@ fun Set<String>.handleSchoolEntities() =
         .filterNot { it.isBlank() }
         .filterNot { it.matches(Regex("-+")) }
         .filterNot { it == "&nbsp;" }
+        .map { it.dropWhile { it == '-' || it == ' ' } }
+        .map { it.dropLastWhile { it == '-' || it == ' ' } }
         .sorted()
         .let { items ->
             items.filter { name ->
-                if (' ' !in name) true
+                if (' ' !in name && '-' !in name) true
                 else {
                     var toConsume = name
                     val itemMap: MutableMap<String, Boolean?> = items.filter { it != name }.associateWith { null }.toMutableMap()
                     fun consumeNext(): Boolean {
+                        val oldValue = toConsume
                         val candidates = itemMap.filterValues { it == null }.filterKeys { toConsume.startsWith(it) }
                         if (candidates.isEmpty()) return true
                         val candidate = candidates.keys.first()
@@ -469,7 +509,7 @@ fun Set<String>.handleSchoolEntities() =
                         if (toConsume.isEmpty()) return false
                         if (!consumeNext()) {
                             itemMap[candidate] = false
-                            toConsume = "$candidate $toConsume"
+                            toConsume = oldValue
                             return false
                         }
                         return toConsume.isNotEmpty()

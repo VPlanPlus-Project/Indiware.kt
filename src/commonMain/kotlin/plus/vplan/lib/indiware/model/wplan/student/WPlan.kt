@@ -18,6 +18,7 @@ data class WPlanStudentData(
     @Serializable
     data class Class(
         @SerialName("Unterricht") @XmlChildrenName("Ue") val subjectInstanceWrapper: List<SubjectInstanceWrapper>,
+        @SerialName("Pl") @XmlChildrenName("Std") val lessons: List<Lesson>,
     ) {
         @SerialName("Ue")
         @Serializable
@@ -31,6 +32,25 @@ data class WPlanStudentData(
                 @SerialName("UeLe") val teacherName: String? = null,
                 @SerialName("UeFa") val subjectName: String,
                 @SerialName("UeGr") val courseName: String? = null
+            )
+        }
+
+        @SerialName("Std")
+        @Serializable
+        data class Lesson(
+            @SerialName("Le") val teacher: Teacher,
+            @SerialName("Ra") val room: Room
+        ) {
+            @Serializable
+            @SerialName("Le")
+            data class Teacher(
+                @XmlValue val name: String
+            )
+
+            @Serializable
+            @SerialName("Ra")
+            data class Room(
+                @XmlValue val name: String
             )
         }
     }

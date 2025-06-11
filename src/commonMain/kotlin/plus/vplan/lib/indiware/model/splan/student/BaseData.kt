@@ -60,11 +60,18 @@ data class SPlanBaseDataStudent(
         @Serializable
         @SerialName("Std")
         data class SPlanLessonStudent(
-            @SerialName("PlLe") val teacher: Teacher
+            @SerialName("PlLe") val teacher: Teacher,
+            @SerialName("PlRa") val room: Room
         ) {
             @Serializable
             @SerialName("PlLe")
             data class Teacher(
+                @XmlValue val name: String
+            )
+
+            @Serializable
+            @SerialName("PlRa")
+            data class Room(
                 @XmlValue val name: String
             )
         }
