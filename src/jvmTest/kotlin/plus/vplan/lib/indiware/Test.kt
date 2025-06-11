@@ -79,8 +79,11 @@ class Test {
         }
         runBlocking {
             accessList.forEach { access ->
-                val classes = indiwareClient.getAllTeachersIntelligent(access) as? Response.Success
-                println("School ID: ${access.indiwareSchoolId}, Teachers: ${classes?.data?.joinToString()}")
+                val teachers = indiwareClient.getAllTeachersIntelligent(access).let {
+                    if (it !is Response.Success) println(it)
+                    it as? Response.Success
+                }
+                println("School ID: ${access.indiwareSchoolId}, Teachers: ${teachers?.data?.joinToString()}")
             }
         }
     }

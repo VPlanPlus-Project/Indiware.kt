@@ -11,9 +11,16 @@ import io.ktor.client.statement.bodyAsText
 import io.ktor.client.statement.request
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.CancellationException
+import kotlinx.datetime.Clock
+import kotlinx.datetime.DatePeriod
 import kotlinx.datetime.LocalDate
+import kotlinx.datetime.TimeZone
 import kotlinx.datetime.format
 import kotlinx.datetime.format.Padding
+import kotlinx.datetime.isoDayNumber
+import kotlinx.datetime.minus
+import kotlinx.datetime.plus
+import kotlinx.datetime.toLocalDateTime
 import nl.adaptivity.xmlutil.ExperimentalXmlUtilApi
 import nl.adaptivity.xmlutil.XmlDeclMode
 import nl.adaptivity.xmlutil.core.XmlVersion
@@ -24,6 +31,8 @@ import plus.vplan.lib.indiware.model.mobile.student.MobileStudentData
 import plus.vplan.lib.indiware.model.splan.student.SPlanBaseDataStudent
 import plus.vplan.lib.indiware.model.vplan.student.VPlanBaseDataStudent
 import plus.vplan.lib.indiware.model.wplan.student.WPlanStudentBaseData
+import plus.vplan.lib.indiware.model.wplan.student.WPlanStudentData
+import kotlin.time.ExperimentalTime
 
 @Suppress("unused")
 class IndiwareClient(
@@ -174,6 +183,46 @@ class IndiwareClient(
             val wPlanBaseDataStudent = try {
                 xml.decodeFromString(
                     deserializer = WPlanStudentBaseData.serializer(),
+                    string = response.bodyAsText().sanitizeRawPayload()
+                ).copy(raw = response.bodyAsText().sanitizeRawPayload())
+            } catch (e: Exception) {
+                throw PayloadParsingException(
+                    url = response.request.url.toString(),
+                    cause = e
+                )
+            }
+
+            return Response.Success(data = wPlanBaseDataStudent)
+        }
+
+        throw IllegalStateException("This should never happen, if it does, please report a bug.")
+    }
+
+    suspend fun getWPlanDataStudent(
+        authentication: Authentication = this.authentication,
+        date: LocalDate
+    ): Response<WPlanStudentData> {
+        safeRequest(onError = { return it }) {
+            val response = client.get {
+                url(
+                    scheme = "https",
+                    host = "stundenplan24.de",
+                    path = "/${authentication.indiwareSchoolId}/wplan/wdatenk/WPlanKl_${date.let {
+                        val format = LocalDate.Format { 
+                            year(Padding.ZERO)
+                            monthNumber(Padding.ZERO)
+                            dayOfMonth(Padding.ZERO)
+                        }
+                        date.format(format)
+                    }}.xml"
+                )
+                authentication.useInRequest(this)
+            }
+
+            response.handleUnsuccessfulStates()?.let { return it }
+            val wPlanBaseDataStudent = try {
+                xml.decodeFromString(
+                    deserializer = WPlanStudentData.serializer(),
                     string = response.bodyAsText().sanitizeRawPayload()
                 ).copy(raw = response.bodyAsText().sanitizeRawPayload())
             } catch (e: Exception) {
@@ -361,6 +410,7 @@ class IndiwareClient(
         return Response.Success(classes.map { it.trim() }.filterNot { it.isBlank() }.toSet())
     }
 
+    @OptIn(ExperimentalTime::class)
     suspend fun getAllTeachersIntelligent(
         authentication: Authentication = this.authentication
     ): Response<Set<String>> {
@@ -371,11 +421,65 @@ class IndiwareClient(
             else if (it is Response.Error.OnlineError.NotFound) null
             else return it as Response.Error
         }
-        teachers.addAll(sPlanBaseDataStudent?.classes.orEmpty().flatMap { it.lessons.mapNotNull { l -> l.teacher.name.ifBlank { null } } })
+        teachers.addAll(sPlanBaseDataStudent?.classes.orEmpty().flatMap { it.lessons.mapNotNull { l -> l.teacher.name.ifBlank { null } } }.flatMap { it.split(",") })
 
-        return Response.Success(teachers.map { it.trim() }.filterNot { it.isBlank() }.toSet())
+        val weekStart = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date.let {
+            it.minus(DatePeriod(days = it.dayOfWeek.isoDayNumber.minus(1)))
+        }
+        if (sPlanBaseDataStudent == null) repeat(5) { i ->
+            val date = weekStart.plus(DatePeriod(days = i))
+            val data = getMobileDataStudent(authentication = authentication, date = date).let {
+                if (it is Response.Success) it.data
+                else if (it is Response.Error.OnlineError.NotFound) null
+                else return it as Response.Error
+            }
+            teachers.addAll(data?.classes.orEmpty().flatMap { it.lessons.mapNotNull { l -> l.teacher.name.ifBlank { null } } })
+
+            val wPlanData = getWPlanDataStudent(authentication = authentication, date = date).let {
+                if (it is Response.Success) it.data
+                else if (it is Response.Error.OnlineError.NotFound) null
+                else return it as Response.Error
+            }
+            teachers.addAll(wPlanData?.classes.orEmpty().flatMap { it.subjectInstanceWrapper.mapNotNull { si -> si.subjectInstance.teacherName?.ifBlank { null } } })
+        }
+
+        return Response.Success(teachers.handleSchoolEntities())
     }
 }
+
+fun Set<String>.handleSchoolEntities() =
+    this
+        .map { it.trim() }
+        .filterNot { it.isBlank() }
+        .filterNot { it.matches(Regex("-+")) }
+        .filterNot { it == "&nbsp;" }
+        .sorted()
+        .let { items ->
+            items.filter { name ->
+                if (' ' !in name) true
+                else {
+                    var toConsume = name
+                    val itemMap: MutableMap<String, Boolean?> = items.filter { it != name }.associateWith { null }.toMutableMap()
+                    fun consumeNext(): Boolean {
+                        val candidates = itemMap.filterValues { it == null }.filterKeys { toConsume.startsWith(it) }
+                        if (candidates.isEmpty()) return true
+                        val candidate = candidates.keys.first()
+                        itemMap[candidate] = true
+                        toConsume = toConsume.substring(candidate.length).trimStart()
+                        if (toConsume.isEmpty()) return false
+                        if (!consumeNext()) {
+                            itemMap[candidate] = false
+                            toConsume = "$candidate $toConsume"
+                            return false
+                        }
+                        return toConsume.isNotEmpty()
+                    }
+                    consumeNext()
+                }
+            }
+        }
+        .toSet()
+
 
 internal inline fun safeRequest(
     onError: (error: Response.Error) -> Unit,
