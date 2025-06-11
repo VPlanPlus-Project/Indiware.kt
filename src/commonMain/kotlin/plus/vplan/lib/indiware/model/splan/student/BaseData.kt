@@ -49,7 +49,7 @@ data class SPlanBaseDataStudent(
         @SerialName("Kurz") val name: ClassName,
         @SerialName("Pl")
         @XmlChildrenName("Std")
-        val lessons: List<SPlanLessonStudent>
+        val lessons: List<SPlanLessonStudent> = emptyList()
     ) {
         @Serializable
         @SerialName("Kurz")
