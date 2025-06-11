@@ -106,7 +106,8 @@ data class MobileStudentData(
         @SerialName("Kurz") val name: ClassName,
         @SerialName("KlStunden") @XmlChildrenName("KlSt") val lessonTimes: List<ClassLessonTime>,
         @SerialName("Kurse") @XmlChildrenName("Ku") val courses: List<ClassCourseWrapper>,
-        @SerialName("Unterricht") @XmlChildrenName("Ue") val subjectInstances: List<MobileStudentBaseData.Class.ClassSubjectInstanceWrapper>
+        @SerialName("Unterricht") @XmlChildrenName("Ue") val subjectInstances: List<MobileStudentBaseData.Class.ClassSubjectInstanceWrapper>,
+        @SerialName("Pl") @XmlChildrenName("Std") val lessons: List<ClassLessonStudent>
     ) {
         @Serializable
         @SerialName("Kurz")
@@ -156,5 +157,24 @@ data class MobileStudentData(
             @XmlValue val name: String,
             @XmlSerialName("KLe") val teacher: String? = null,
         )
+
+        @Serializable
+        @SerialName("Std")
+        data class ClassLessonStudent(
+            @SerialName("Le") val teacher: Teacher,
+            @SerialName("Ra") val room: Room
+        ) {
+            @Serializable
+            @SerialName("Le")
+            data class Teacher(
+                @XmlValue val name: String
+            )
+
+            @Serializable
+            @SerialName("Ra")
+            data class Room(
+                @XmlValue val name: String
+            )
+        }
     }
 }

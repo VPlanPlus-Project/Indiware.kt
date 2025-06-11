@@ -10,7 +10,7 @@ import io.ktor.client.plugins.logging.Logging
 import plus.vplan.lib.indiware.source.Authentication
 import plus.vplan.lib.indiware.source.IndiwareClient
 
-val client = HttpClient(CIO) {
+internal val commonClient = HttpClient(CIO) {
     install(HttpCache)
     install(Logging) {
         logger = object: Logger {
@@ -22,11 +22,11 @@ val client = HttpClient(CIO) {
     }
 }
 
-val indiwareClient = IndiwareClient(
+internal val commonIndiwareClient = IndiwareClient(
     authentication = Authentication(
         indiwareSchoolId = "10000000",
         username = "schueler",
         password = "123123"
     ),
-    client = client
+    client = commonClient
 )
