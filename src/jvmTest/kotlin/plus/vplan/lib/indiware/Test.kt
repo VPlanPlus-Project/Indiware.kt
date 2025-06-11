@@ -83,7 +83,7 @@ class Test {
                     if (it !is Response.Success) println(it)
                     it as? Response.Success
                 }
-                println("School ID: ${access.indiwareSchoolId}, Teachers: ${teachers?.data?.joinToString()}")
+                println("School ID: ${access.indiwareSchoolId}, Teachers: ${teachers?.data?.joinToString { "'$it'" }}")
             }
         }
     }

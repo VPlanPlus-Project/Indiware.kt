@@ -487,6 +487,8 @@ class IndiwareClient(
 fun Set<String>.handleSchoolEntities() =
     this
         .map { it.trim() }
+        .flatMap { it.split(",") }
+        .flatMap { it.split(", ") }
         .filterNot { it.isBlank() }
         .filterNot { it.matches(Regex("-+")) }
         .filterNot { it == "&nbsp;" }
