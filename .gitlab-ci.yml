@@ -5,17 +5,10 @@ stages:
 variables:
     PROJECT_MAVEN_USERNAME: "gitlab-ci-token"
     PROJECT_MAVEN_PASSWORD: "$CI_JOB_TOKEN"
-    ANDROID_HOME: "/home/gitlab-runner/android-sdk"
-
-.default-job:
-    before_script:
-        - chmod +x ./gradlew
 
 build:merge-request:
-    extends: .default-job
     stage: build
-    tags:
-        - android
+    image: registry.gitlab.jvbabi.es/vplanplus/infra/docker-android-sdk/android-sdk-jdk:latest
     rules:
         - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
     script:
@@ -27,14 +20,10 @@ build:merge-request:
         name: "build-artifacts-$CI_COMMIT_SHORT_SHA"
 
 release:build-and-publish:
-    extends: .default-job
     stage: release
-    tags:
-        - android
     rules:
         - if: '$CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE == "push"'
-    before_script:
-        - echo "Using Android SDK at $ANDROID_HOME"
+    image: registry.gitlab.jvbabi.es/vplanplus/infra/docker-android-sdk/android-sdk-jdk:latest
     script:
         - |
             YEAR=$(date +'%Y')
