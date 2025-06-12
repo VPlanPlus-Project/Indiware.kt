@@ -482,6 +482,29 @@ class IndiwareClient(
 
         return Response.Success(rooms.handleSchoolEntities())
     }
+
+    suspend fun getAllCourses(authentication: Authentication = this.authentication): Response<Map<String, List<Course>>> {
+        val mobileStudentBaseData = getMobileBaseDataStudent(authentication).let {
+            if (it is Response.Error) return it
+            it as Response.Success
+        }
+
+        val result = mobileStudentBaseData.data.classes.associate {
+            it.name.name to it.courses.map { course ->
+                Course(
+                    name = course.course.courseName,
+                    teacher = course.course.courseTeacherName
+                )
+            }
+        }
+
+        return Response.Success(result)
+    }
+
+    data class Course(
+        val name: String,
+        val teacher: String
+    )
 }
 
 fun Set<String>.handleSchoolEntities() =
