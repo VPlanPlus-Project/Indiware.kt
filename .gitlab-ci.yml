@@ -8,6 +8,12 @@ variables:
 
 build:merge-request:
     stage: build
+    cache:
+        key: "$CI_COMMIT_REF_SLUG"
+        paths:
+            - .gradle/caches/
+            - .gradle/wrapper/
+        policy: pull-push
     image:
         name: registry.gitlab.jvbabi.es/vplanplus/infra/docker-android-sdk/android-sdk-jdk:latest
         entrypoint: [""]
@@ -23,6 +29,12 @@ build:merge-request:
 
 release:build-and-publish:
     stage: release
+    cache:
+        key: "$CI_COMMIT_REF_SLUG"
+        paths:
+            - .gradle/caches/
+            - .gradle/wrapper/
+        policy: pull-push
     rules:
         - if: '$CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE == "push"'
     image:
