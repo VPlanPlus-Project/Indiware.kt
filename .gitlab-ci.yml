@@ -14,7 +14,7 @@ build:merge-request:
     rules:
         - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
     script:
-        - ./gradlew build --scan --no-daemonglpat-FkwML69p_gRwWuF2u1Hr
+        - ./gradlew build --scan --no-daemon
     artifacts:
         paths:
             - build/libs/*.jar
