@@ -8,8 +8,9 @@ variables:
 
 build:merge-request:
     stage: build
-    image: registry.gitlab.jvbabi.es/vplanplus/infra/docker-android-sdk/android-sdk-jdk:latest
-    entrypoint: [""]
+    image:
+        name: registry.gitlab.jvbabi.es/vplanplus/infra/docker-android-sdk/android-sdk-jdk:latest
+        entrypoint: [""]
     rules:
         - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
     script:
@@ -24,8 +25,9 @@ release:build-and-publish:
     stage: release
     rules:
         - if: '$CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE == "push"'
-    image: registry.gitlab.jvbabi.es/vplanplus/infra/docker-android-sdk/android-sdk-jdk:latest
-    entrypoint: [""]
+    image:
+        name: registry.gitlab.jvbabi.es/vplanplus/infra/docker-android-sdk/android-sdk-jdk:latest
+        entrypoint: [""]
     script:
         - |
             YEAR=$(date +'%Y')
