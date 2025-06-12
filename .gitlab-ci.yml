@@ -9,10 +9,11 @@ variables:
 build:merge-request:
     stage: build
     image: registry.gitlab.jvbabi.es/vplanplus/infra/docker-android-sdk/android-sdk-jdk:latest
+    entrypoint: [""]
     rules:
         - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
     script:
-        - ./gradlew build --scan --no-daemon
+        - ./gradlew build --scan --no-daemonglpat-FkwML69p_gRwWuF2u1Hr
     artifacts:
         paths:
             - build/libs/*.jar
@@ -24,6 +25,7 @@ release:build-and-publish:
     rules:
         - if: '$CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE == "push"'
     image: registry.gitlab.jvbabi.es/vplanplus/infra/docker-android-sdk/android-sdk-jdk:latest
+    entrypoint: [""]
     script:
         - |
             YEAR=$(date +'%Y')
