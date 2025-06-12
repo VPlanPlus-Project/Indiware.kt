@@ -5,6 +5,7 @@ stages:
 variables:
     PROJECT_MAVEN_USERNAME: "gitlab-ci-token"
     PROJECT_MAVEN_PASSWORD: "$CI_JOB_TOKEN"
+    GRADLE_USER_HOME: "$CI_PROJECT_DIR/.gradle"
 
 build:merge-request:
     stage: build
