@@ -5,19 +5,19 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import nl.adaptivity.xmlutil.serialization.XmlChildrenName
+import nl.adaptivity.xmlutil.serialization.XmlElement
+import nl.adaptivity.xmlutil.serialization.XmlSerialName
 import nl.adaptivity.xmlutil.serialization.XmlValue
 
 @Serializable
 @SerialName("splan")
 data class SPlanBaseDataStudent(
     @SerialName("Kopf") val head: Head,
-    @SerialName("FreieTage")
-    @XmlChildrenName("ft")
+    @SerialName("FreieTage") @XmlChildrenName("ft")
     val holidays: List<String>,
 
-    @SerialName("Klassen")
-    @XmlChildrenName("Kl")
-    val classes: List<SPlanClassStudent>,
+    @SerialName("Klassen") @XmlChildrenName("Kl")
+    val classes: List<SPlanClassStudent> = emptyList(),
 
     @Transient val raw: String = ""
 ) {
@@ -32,47 +32,27 @@ data class SPlanBaseDataStudent(
     val prettifiedHolidays: Set<LocalDate> = this.holidays.map { LocalDate.parse(it, holidayFormat) }.toSet()
 
     @Serializable
-    @SerialName("Kopf")
+    @XmlSerialName("Kopf")
     data class Head(
-        @SerialName("schulname") val schoolName: SchoolName? = null
-    ) {
-        @Serializable
-        @SerialName("schulname")
-        data class SchoolName(
-            @XmlValue val name: String
-        )
-    }
+        @XmlElement @SerialName("schulname") val schoolName: String? = null,
+    )
 
     @Serializable
-    @SerialName("Kl")
+    @XmlSerialName("Kl")
     data class SPlanClassStudent(
-        @SerialName("Kurz") val name: ClassName,
-        @SerialName("Pl")
-        @XmlChildrenName("Std")
-        val lessons: List<SPlanLessonStudent> = emptyList()
+        @XmlElement @SerialName("Kurz") val name: String,
+        @SerialName("Pl") val plan: Plan? = null
     ) {
         @Serializable
-        @SerialName("Kurz")
-        data class ClassName(
-            @XmlValue val name: String
-        )
-
-        @Serializable
-        @SerialName("Std")
-        data class SPlanLessonStudent(
-            @SerialName("PlLe") val teacher: Teacher,
-            @SerialName("PlRa") val room: Room
+        @XmlSerialName("Pl")
+        data class Plan(
+            @XmlValue val lessons: List<Lesson>
         ) {
             @Serializable
-            @SerialName("PlLe")
-            data class Teacher(
-                @XmlValue val name: String
-            )
-
-            @Serializable
-            @SerialName("PlRa")
-            data class Room(
-                @XmlValue val name: String
+            @SerialName("Std")
+            data class Lesson(
+                @XmlElement @SerialName("PlLe") val teacher: String,
+                @XmlElement @SerialName("PlRa") val room: String
             )
         }
     }

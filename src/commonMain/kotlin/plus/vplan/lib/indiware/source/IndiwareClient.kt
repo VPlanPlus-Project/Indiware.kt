@@ -366,7 +366,7 @@ class IndiwareClient(
             else if (it is Response.Error.OnlineError.NotFound) null
             else return it as Response.Error
         }
-        sPlanBaseDataStudent?.head?.schoolName?.name?.let { return Response.Success(it) }
+        sPlanBaseDataStudent?.head?.schoolName?.ifBlank { null }?.let { return Response.Success(it) }
 
         return Response.Success(null)
     }
@@ -405,7 +405,7 @@ class IndiwareClient(
             else if (it is Response.Error.OnlineError.NotFound) null
             else return it as Response.Error
         }
-        classes.addAll(sPlanBaseDataStudent?.classes.orEmpty().map { it.name.name })
+        classes.addAll(sPlanBaseDataStudent?.classes.orEmpty().map { it.name })
 
         return Response.Success(classes.map { it.trim() }.filterNot { it.isBlank() }.toSet())
     }
@@ -421,7 +421,14 @@ class IndiwareClient(
             else if (it is Response.Error.OnlineError.NotFound) null
             else return it as Response.Error
         }
-        teachers.addAll(sPlanBaseDataStudent?.classes.orEmpty().flatMap { it.lessons.mapNotNull { l -> l.teacher.name.ifBlank { null } } }.flatMap { it.split(",") })
+        teachers.addAll(sPlanBaseDataStudent?.classes.orEmpty().flatMap { it.plan?.lessons.orEmpty().mapNotNull { l -> l.teacher.ifBlank { null } } }.flatMap { it.split(",") })
+
+        val mobileStudentBaseData = getMobileBaseDataStudent(authentication).let {
+            if (it is Response.Success) it.data
+            else if (it is Response.Error.OnlineError.NotFound) null
+            else return it as Response.Error
+        }
+        teachers.addAll(mobileStudentBaseData?.classes.orEmpty().flatMap { it.courses.map { it.course.courseTeacherName } })
 
         val weekStart = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date.let {
             it.minus(DatePeriod(days = it.dayOfWeek.isoDayNumber.minus(1)))
@@ -458,7 +465,7 @@ class IndiwareClient(
             else if (it is Response.Error.OnlineError.NotFound) null
             else return it as Response.Error
         }
-        rooms.addAll(sPlanBaseDataStudent?.classes.orEmpty().flatMap { it.lessons.mapNotNull { l -> l.room.name.ifBlank { null } } }.flatMap { it.split(",") })
+        rooms.addAll(sPlanBaseDataStudent?.classes.orEmpty().flatMap { it.plan?.lessons.orEmpty().mapNotNull { l -> l.room.ifBlank { null } } }.flatMap { it.split(",") })
 
         val weekStart = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date.let {
             it.minus(DatePeriod(days = it.dayOfWeek.isoDayNumber.minus(1)))
@@ -558,6 +565,10 @@ internal inline fun safeRequest(
                 is ClientRequestException, is HttpRequestTimeoutException -> Response.Error.OnlineError.ConnectionError
                 is ServerResponseException -> Response.Error.Other(e.message)
                 is CancellationException -> Response.Error.Cancelled
+                is PayloadParsingException -> {
+                    e.printStackTrace()
+                    Response.Error.ParsingError(e)
+                }
                 else -> Response.Error.Other(e.stackTraceToString())
             }
         )
