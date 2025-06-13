@@ -13,7 +13,7 @@ actual fun getClient(): IndiwareClient{
 
 actual fun getWPlanSchool(): Authentication {
     val file = File("./10063764.txt")
-    val (username, password) = file.readLines()
+    val (username, password) = file.readLines().first().split(" ")
     return Authentication(
         indiwareSchoolId = "10063764",
         username = username,
@@ -23,7 +23,7 @@ actual fun getWPlanSchool(): Authentication {
 
 actual fun getSPlanSchool(): Authentication {
     val file = File("./20299165.txt")
-    val (username, password) = file.readLines()
+    val (username, password) = file.readLines().first().split(" ")
     return Authentication(
         indiwareSchoolId = "20299165",
         username = username,

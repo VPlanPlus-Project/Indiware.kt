@@ -23,8 +23,6 @@ build:merge-request:
     before_script:
         - echo $SP24_10063764 >> 10063764.txt
         - echo $SP24_20299165 >> 20299165.txt
-        - cat 10063764.txt
-        - cat 20299165.txt
     script:
         - ./gradlew build --scan --no-daemon
     artifacts:
