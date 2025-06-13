@@ -12,20 +12,26 @@ actual fun getClient(): IndiwareClient{
 }
 
 actual fun getWPlanSchool(): Authentication {
-    val file = File("./10063764.txt")
-    val (username, password) = file.readLines().first().split(" ")
-    return Authentication(
-        indiwareSchoolId = "10063764",
-        username = username,
-        password = password
-    )
+    return getAuthFromFile("10063764")
 }
 
 actual fun getSPlanSchool(): Authentication {
-    val file = File("./20299165.txt")
-    val (username, password) = file.readLines().first().split(" ")
+    return getAuthFromFile("20299165")
+}
+
+private fun getAuthFromFile(schoolId: String): Authentication {
+    val file = File("$schoolId.txt")
+    if (!file.exists()) {
+        throw IllegalStateException("Authentication file for school ID $schoolId does not exist.")
+    }
+    val (username, password) = try {
+        file.readLines().first().split(" ")
+    } catch (e: Exception) {
+        throw IllegalStateException("Failed to read authentication details from file: ${file.path}\n${file.readText()}", e)
+    }
+
     return Authentication(
-        indiwareSchoolId = "20299165",
+        indiwareSchoolId = schoolId,
         username = username,
         password = password
     )

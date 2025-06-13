@@ -21,8 +21,8 @@ build:merge-request:
     rules:
         - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
     before_script:
-        - echo $SP24_10063764 >> 10063764.txt
-        - echo $SP24_20299165 >> 20299165.txt
+        - echo $SP24_10063764 >> ./10063764.txt
+        - echo $SP24_20299165 >> ./20299165.txt
     script:
         - ./gradlew build --scan --no-daemon
     artifacts:
