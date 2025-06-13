@@ -1,16 +1,24 @@
 package plus.vplan.lib.indiware
 
-import kotlinx.coroutines.runBlocking
+import io.kotest.core.spec.style.FunSpec
+import io.kotest.inspectors.forAll
+import io.kotest.matchers.nulls.shouldNotBeNull
+import io.kotest.matchers.shouldBe
+import io.kotest.matchers.shouldNotBe
 import plus.vplan.lib.indiware.source.Response
-import kotlin.test.Test
-import kotlin.test.assertTrue
 
-class IntelligentTest {
-    @Test
-    fun `Get classes`() = runBlocking {
-        val response = commonIndiwareClient.getAllClassesIntelligent()
-        val classes = (response as? Response.Success)?.data
-        println(classes)
-        assertTrue("Classes should not be empty") { classes.orEmpty().isNotEmpty() }
+class IntelligentTest : FunSpec() {
+    init {
+        test("Get classes") {
+            val response = commonIndiwareClient.getAllClassesIntelligent()
+            val classes = (response as? Response.Success)?.data
+
+            classes shouldNotBeNull {
+                this.isEmpty() shouldBe false
+                this.forAll {
+                    it shouldNotBe ""
+                }
+            }
+        }
     }
 }
