@@ -20,6 +20,9 @@ build:merge-request:
         entrypoint: [""]
     rules:
         - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    before_script:
+        - echo $SP24_10063764 >> ./10063764.txt
+        - echo $SP24_20299165 >> ./20299165.txt
     script:
         - ./gradlew build --scan --no-daemon
     artifacts:
@@ -41,6 +44,9 @@ release:build-and-publish:
     image:
         name: registry.gitlab.jvbabi.es/vplanplus/infra/docker-android-sdk/android-sdk-jdk:latest
         entrypoint: [""]
+    before_script:
+        - echo $SP24_10063764 >> 10063764.txt
+        - echo $SP24_20299165 >> 20299165.txt
     script:
         - apt update && apt install -y git
         - |

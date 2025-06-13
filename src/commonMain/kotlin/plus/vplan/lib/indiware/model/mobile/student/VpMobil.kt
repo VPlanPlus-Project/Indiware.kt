@@ -106,7 +106,6 @@ data class MobileStudentData(
         @SerialName("Kurz") val name: ClassName,
         @SerialName("KlStunden") @XmlChildrenName("KlSt") val lessonTimes: List<ClassLessonTime>,
         @SerialName("Kurse") @XmlChildrenName("Ku") val courses: List<ClassCourseWrapper>,
-        @SerialName("Unterricht") @XmlChildrenName("Ue") val subjectInstances: List<MobileStudentBaseData.Class.ClassSubjectInstanceWrapper>,
         @SerialName("Pl") @XmlChildrenName("Std") val lessons: List<ClassLessonStudent>
     ) {
         @Serializable
