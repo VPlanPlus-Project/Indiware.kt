@@ -5,22 +5,20 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import nl.adaptivity.xmlutil.serialization.XmlChildrenName
+import nl.adaptivity.xmlutil.serialization.XmlElement
 import nl.adaptivity.xmlutil.serialization.XmlSerialName
 import nl.adaptivity.xmlutil.serialization.XmlValue
 
 @Serializable
 @SerialName("VpMobil")
 data class MobileStudentBaseData(
-    @SerialName("FreieTage")
-    @XmlChildrenName("ft")
+    @SerialName("FreieTage") @XmlChildrenName("ft")
     val holidays: List<String>,
 
-    @SerialName("Klassen")
-    @XmlChildrenName("Kl")
+    @SerialName("Klassen") @XmlChildrenName("Kl")
     val classes: List<Class>,
 
     @SerialName("Kopf")
-    @Serializable
     val header: Header,
 
     @Transient
@@ -37,63 +35,63 @@ data class MobileStudentBaseData(
 
     val prettifiedHolidays: Set<LocalDate> = this.holidays.map { LocalDate.parse(it, holidayFormat) }.toSet()
 
-    @SerialName("Kopf")
     @Serializable
+    @XmlSerialName("Kopf")
     data class Header(
-        @SerialName("tageprowoche") val daysPerWeek: DaysPerWeek
-    ) {
-        @SerialName("tageprowoche")
-        @Serializable
-        data class DaysPerWeek(
-            @XmlValue val daysPerWeek: Int
-        )
-    }
+        @XmlElement @SerialName("tageprowoche")
+        val daysPerWeek: Int? = null,
+    )
 
-    @SerialName("Kl")
     @Serializable
+    @XmlSerialName("Kl")
     data class Class(
-        @SerialName("Kurz") val name: ClassName,
+        @XmlElement @SerialName("Kurz")
+        val name: String,
 
         @SerialName("KlStunden")
-        @XmlChildrenName("KlSt")
-        val lessonTimes: List<ClassLessonTime>,
+        val lessonTimes: LessonTimes,
 
         @SerialName("Unterricht")
-        @XmlChildrenName("Ue")
-        val subjectInstances: List<ClassSubjectInstanceWrapper>,
+        val subjectInstances: SubjectInstances,
 
-        @SerialName("Kurse")
-        @XmlChildrenName("Ku")
+        @SerialName("Kurse") @XmlChildrenName("Ku")
         val courses: List<ClassCourseWrapper>
     ) {
 
         @Serializable
-        @SerialName("Kurz")
-        data class ClassName(
-            @XmlValue val name: String
-        )
-
-        @SerialName("KlSt")
-        @Serializable
-        data class ClassLessonTime(
-            @XmlSerialName("ZeitVon") val startTime: String,
-            @XmlSerialName("ZeitBis") val endTime: String,
-            @XmlValue val lessonNumber: Int,
-        )
-
-        @Serializable
-        @SerialName("Ue")
-        data class ClassSubjectInstanceWrapper(
-            @SerialName("UeNr") val subjectInstance: ClassSubjectInstance
+        @XmlSerialName("KlStunden")
+        data class LessonTimes(
+            @XmlValue val lessonTimes: List<ClassLessonTime>
         ) {
+            @XmlSerialName("KlSt")
             @Serializable
-            @SerialName("UeNr")
-            data class ClassSubjectInstance(
-                @XmlValue val subjectInstanceNumber: Int,
-                @SerialName("UeLe") val teacherName: String,
-                @SerialName("UeFa") val subjectName: String,
-                @SerialName("UeGr") val courseName: String? = null
+            data class ClassLessonTime(
+                @SerialName("ZeitVon") val startTime: String,
+                @SerialName("ZeitBis") val endTime: String,
+                @XmlValue val lessonNumber: Int,
             )
+        }
+
+        @Serializable
+        @XmlSerialName("Unterricht")
+        data class SubjectInstances(
+            @XmlValue val subjectInstances: List<ClassSubjectInstanceWrapper>
+        ) {
+
+            @Serializable
+            @XmlSerialName("Ue")
+            data class ClassSubjectInstanceWrapper(
+                @SerialName("UeNr") val subjectInstance: ClassSubjectInstance
+            ) {
+                @Serializable
+                @XmlSerialName("UeNr")
+                data class ClassSubjectInstance(
+                    @XmlValue val subjectInstanceNumber: Int,
+                    @SerialName("UeLe") val teacherName: String,
+                    @SerialName("UeFa") val subjectName: String,
+                    @SerialName("UeGr") val courseName: String? = null
+                )
+            }
         }
 
         @Serializable

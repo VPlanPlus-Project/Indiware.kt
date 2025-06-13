@@ -384,7 +384,7 @@ class IndiwareClient(
             else if (it is Response.Error.OnlineError.NotFound) null
             else return it as Response.Error
         }
-        classes.addAll(mobileBaseData?.classes.orEmpty().map { it.name.name })
+        classes.addAll(mobileBaseData?.classes.orEmpty().map { it.name })
 
         val vPlanBaseDataStudent = getVPlanBaseDataStudent(authentication).let {
             if (it is Response.Success) it.data
@@ -497,7 +497,7 @@ class IndiwareClient(
         }
 
         val result = mobileStudentBaseData.data.classes.associate {
-            it.name.name to it.courses.map { course ->
+            it.name to it.courses.map { course ->
                 Course(
                     name = course.course.courseName,
                     teacher = course.course.courseTeacherName
@@ -508,9 +508,31 @@ class IndiwareClient(
         return Response.Success(result)
     }
 
+    suspend fun getAllSubjectInstances(authentication: Authentication = this.authentication): Response<Map<String, List<SubjectInstance>>> {
+        val mobileStudentBaseData = getMobileBaseDataStudent(authentication).let {
+            if (it is Response.Error) return it
+            it as Response.Success
+        }
+        return Response.Success(mobileStudentBaseData.data.classes.associate {
+            it.name to it.subjectInstances.subjectInstances.map { instance ->
+                SubjectInstance(
+                    subject = instance.subjectInstance.subjectName,
+                    teacher = instance.subjectInstance.teacherName.ifBlank { null },
+                    course = instance.subjectInstance.courseName?.ifBlank { null }
+                )
+            }
+        })
+    }
+
     data class Course(
         val name: String,
         val teacher: String
+    )
+
+    data class SubjectInstance(
+        val subject: String,
+        val teacher: String?,
+        val course: String?
     )
 }
 
