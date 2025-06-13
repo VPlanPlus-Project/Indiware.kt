@@ -42,6 +42,7 @@ release:build-and-publish:
         name: registry.gitlab.jvbabi.es/vplanplus/infra/docker-android-sdk/android-sdk-jdk:latest
         entrypoint: [""]
     script:
+        - apt update && apt install -y git
         - |
             YEAR=$(date +'%Y')
             MONTH=$(date +'%m')
