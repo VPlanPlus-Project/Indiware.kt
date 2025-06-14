@@ -516,6 +516,7 @@ class IndiwareClient(
         return Response.Success(mobileStudentBaseData.data.classes.associate {
             it.name to it.subjectInstances.subjectInstances.map { instance ->
                 SubjectInstance(
+                    id = instance.subjectInstance.subjectInstanceNumber,
                     subject = instance.subjectInstance.subjectName,
                     teacher = instance.subjectInstance.teacherName.ifBlank { null },
                     course = instance.subjectInstance.courseName?.ifBlank { null }
@@ -532,7 +533,8 @@ class IndiwareClient(
     data class SubjectInstance(
         val subject: String,
         val teacher: String?,
-        val course: String?
+        val course: String?,
+        val id: Int
     )
 }
 
